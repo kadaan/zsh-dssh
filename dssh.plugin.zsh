@@ -201,41 +201,42 @@ dssh() {
       fi
     done
 
+    local addr=""
     if [ -z "$info" ]; then
-        _perror "Unknown host: $target"
-        return $E_UHOST
+      _pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
+      addr=$target
+    else
+      local count=$(echo "$info" | wc -l)
+
+      if [[ $count -gt 1 ]]; then
+        while
+            local refreshMenu=0
+            _print_menu $info
+
+            while true; do
+                echo -n "Which server [#]: " 1>&2
+                read position
+
+                if [[ "$position" = "Q" ]] || [[ "$position" = "q" ]]; then
+                    return $E_NOERROR
+                elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
+                    _update_inventories
+                    info=$(grep -h -- "$target" $AWS_HOSTFILE.*)
+                    refreshMenu=1
+                    break
+                elif [ $position -ge 1 ] 2>/dev/null && [ $position -le $count ] 2>/dev/null;  then
+                    info=$(echo "$info" | sed -n "${position}p")
+                    break
+                fi
+            done
+            (( refreshMenu > 0 ))
+        do
+            continue
+        done
+      fi
+
+      local addr=`echo $info | awk -F, '{print $2}'`
     fi
-
-    local count=$(echo "$info" | wc -l)
-
-    if [[ $count -gt 1 ]]; then
-      while
-          local refreshMenu=0
-          _print_menu $info
-
-          while true; do
-              echo -n "Which server [#]: " 1>&2
-              read position
-
-              if [[ "$position" = "Q" ]] || [[ "$position" = "q" ]]; then
-                  return $E_NOERROR
-              elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
-                  _update_inventories
-                  info=$(grep -h -- "$target" $AWS_HOSTFILE.*)
-                  refreshMenu=1
-                  break
-              elif [ $position -ge 1 ] 2>/dev/null && [ $position -le $count ] 2>/dev/null;  then
-                  info=$(echo "$info" | sed -n "${position}p")
-                  break
-              fi
-          done
-          (( refreshMenu > 0 ))
-      do
-          continue
-      done
-    fi
-
-    local addr=`echo $info | awk -F, '{print $2}'`
 
     echo "" 1>&2
     _pverbose "Connecting to $addr..."
