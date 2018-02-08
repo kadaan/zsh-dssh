@@ -6,7 +6,6 @@ dssh() {
     local AWS_HOSTFILE=$HOME/.aws-hosts
     local E_NOERROR=0
     local E_NOARGS=103
-    local E_UHOST=104
     local GRAY='\033[38;5;249m'
     local ORANGE='\033[38;5;160m'
     local RED='\033[38;5;208m'
