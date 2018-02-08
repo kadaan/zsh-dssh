@@ -27,6 +27,7 @@ dssh() {
         echo
         echo "Usage: dssh [options] tag"
         echo "    -r, --refresh         refresh the cached host information"
+        echo "    -v, --verbose         verbose logging"
         echo "    -h, --help            display this help message"
     }
     _get_host() {
@@ -105,9 +106,10 @@ dssh() {
     fi
 
     params=( "$@" );
-    index=0
-    refresh_index=-1
-    completions_index=-1
+    index=1
+    refresh_enabled=false
+    verbose_enabled=false
+    completions_enabled=false
     for var in "$@"; do
         case "$var" in
             -h | --help)
@@ -115,27 +117,23 @@ dssh() {
                 return $E_NOERROR
             ;;
             -r | --refresh)
-                refresh_index=$index
+                refresh_enabled=true
+                params[$index]=()
+            ;;
+            -v | --verbose)
+                verbose_enabled=true
+                params[$index]=()
             ;;
             --completions)
-                completions_index=$index
+                completions_enabled=true
+                params[$index]=()
             ;;
         esac
         index=$((index+1))
     done
 
     lastIndex=$((${#params[@]}-1))
-    if [[ $refresh_index -eq 0 ]]; then
-        params=("${params[@]:1}")
-        _update_inventories
-    elif [[ $refresh_index -ge 1 ]] && [[ $refresh_index -lt $lastIndex ]]; then
-        li=$((refresh_index-1))
-        l=("${params[@]:0:$li}")
-        r=("${params[@]:$refresh_index}")
-        params=("${l[@]}" "${r[@]}")
-        _update_inventories
-    elif [[ $refresh_index -ne -1 ]]; then
-        params=("${params[@]:0:$lastIndex}")
+    if [[ "$refresh_enabled" = true ]]; then
         _update_inventories
     else
         (
@@ -162,7 +160,7 @@ dssh() {
         )
     fi
 
-    if [[ $completions_index -ge 0 ]]; then
+    if [[ "$completions_enabled" = true ]]; then
         COMPREPLY=($(\cat $AWS_HOSTFILE.* | cut -f1 -d , | uniq && \cat $AWS_HOSTFILE.* | cut -f2 -d , | uniq))
         return $E_NOERROR
     fi
@@ -226,6 +224,8 @@ dssh() {
 
     echo "" 1>&2
     _pverbose "Connecting to $addr..."
-    ssh -o ConnectTimeout=30 $addr
+    verbose_flag="$(if [[ "$verbose_enabled" == true ]]; then echo "-v"; else echo ""; fi)"
+    ssh_command=(ssh $verbose_flag -o ConnectTimeout=30 ${addr})
+    ${ssh_command[@]}
     return $?
 }
