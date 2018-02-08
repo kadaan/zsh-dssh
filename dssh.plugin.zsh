@@ -3,17 +3,17 @@ dssh() {
     set -o pipefail
 
 
-    AWS_HOSTFILE=$HOME/.aws-hosts
-    E_NOERROR=0
-    E_NOARGS=103
-    E_UHOST=104
-    GRAY='\033[38;5;249m'
-    ORANGE='\033[38;5;160m'
-    RED='\033[38;5;208m'
-    BOLD_WHITE='\033[1m'
-    NC='\033[0m'
-    ENVS=()
-    HOSTS=[]
+    local AWS_HOSTFILE=$HOME/.aws-hosts
+    local E_NOERROR=0
+    local E_NOARGS=103
+    local E_UHOST=104
+    local GRAY='\033[38;5;249m'
+    local ORANGE='\033[38;5;160m'
+    local RED='\033[38;5;208m'
+    local BOLD_WHITE='\033[1m'
+    local NC='\033[0m'
+    local ENVS=()
+    local HOSTS=[]
 
     _pverbose() { echo -e "${GRAY}$1${NC}" 1>&2; }
     _pwarn() { echo -e "${ORANGE}$1${NC}" 1>&2; }
@@ -27,23 +27,24 @@ dssh() {
         echo
         echo "Usage: dssh [options] tag"
         echo "    -r, --refresh         refresh the cached host information"
-        echo "    -v, --verbose         verbose logging"
+        echo "    -t, --tunnel=PORT     create a tunnel for the specified port"
+        echo "    -v                    verbose logging, multiple -v options increase the verbosity"
         echo "    -h, --help            display this help message"
     }
     _get_host() {
-        tmp="${1%%,*}"
-        host="${1%%,*}"
+        local tmp="${1%%,*}"
+        local host="${1%%,*}"
         echo $host
     }
     _get_color() {
-        color="${1##*,}"
+        local color="${1##*,}"
         echo -e "\\033[38;5;${color}m"
     }
     _lsenv() {
         ls -1 $HOME/.env/*.sh
     }
     _get_envname() {
-        filename=$(basename "$1")
+        local filename=$(basename "$1")
         filename="${filename%.*}"
         echo $filename
     }
@@ -56,13 +57,13 @@ dssh() {
         (
             cd $ANSIBLE_PATH || return
             source $1
-            filename=$(_get_envname "$1")
+            local filename=$(_get_envname "$1")
             if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
                 return
             fi
-            i=0
+            local i=0
             _refresh_inventory
-            result=$?
+            local result=$?
             while [ $result -ne 0 ]; do
                 i=$(($i+1))
                 if [ "$i" -gt 5 ]; then
@@ -85,10 +86,10 @@ dssh() {
         _unlock
     }
     _print_menu() {
-      index=1
+      local index=1
       for line in $(echo "$1"); do
-          host="$(_get_host $line)"
-          color="$(_get_color $line)"
+          local host="$(_get_host $line)"
+          local color="$(_get_color $line)"
           echo -e "${color}$index:${NC} $host" 1>&2
           index=$((index+1))
       done
@@ -105,11 +106,13 @@ dssh() {
         return $E_NOARGS
     fi
 
-    params=( "$@" );
-    index=1
-    refresh_enabled=false
-    verbose_enabled=false
-    completions_enabled=false
+    local -a params=( "$@" );
+    local index=1
+    local refresh_enabled=false
+    local verbose_level=0
+    local verbose_flag=""
+    local tunnel_port=""
+    local completions_enabled=false
     for var in "$@"; do
         case "$var" in
             -h | --help)
@@ -120,24 +123,35 @@ dssh() {
                 refresh_enabled=true
                 params[$index]=()
             ;;
-            -v | --verbose)
-                verbose_enabled=true
+            -v | -vv | -vvv | -vvvv)
+                verbose_flag=${params[$index]}
+                local verbose_elements=${params[$index]##-}
+                verbose_level=${#verbose_elements}
+                if [[ $verbose_level -eq 4 ]]; then
+                  set -x
+                fi
                 params[$index]=()
             ;;
             --completions)
                 completions_enabled=true
                 params[$index]=()
             ;;
+            *)
+              if [[ $var == -t=* || $var == --tunnel=* ]]; then
+                  tunnel_port=${params[$index]##*=}
+                  params[$index]=()
+              else
+                index=$((index+1))
+              fi
+            ;;
         esac
-        index=$((index+1))
     done
 
-    lastIndex=$((${#params[@]}-1))
     if [[ "$refresh_enabled" = true ]]; then
         _update_inventories
     else
         (
-            needUpdates=0
+            local needUpdates=0
             _lsenv | while read x; do
                 source $x
                 filename=$(_get_envname "$x")
@@ -145,9 +159,9 @@ dssh() {
                     if [[ ! -f $AWS_HOSTFILE.$filename ]] || [[ ! -s $AWS_HOSTFILE.$filename ]]; then
                       needUpdates=$((needUpdates+1))
                     else
-                      currentTimestamp=$(date +%s)
-                      fileTimestamp=$(stat -f "%m" "$AWS_HOSTFILE.$filename")
-                      elapsedTime=$(($currentTimestamp-$fileTimestamp))
+                      local currentTimestamp=$(date +%s)
+                      local fileTimestamp=$(stat -f "%m" "$AWS_HOSTFILE.$filename")
+                      local elapsedTime=$(($currentTimestamp-$fileTimestamp))
                       if [[ $elapsedTime -gt ${DSSH_HOST_UPDATE_FREQUENCY:-3600} ]]; then
                           needUpdates=$((needUpdates+1))
                       fi
@@ -169,7 +183,8 @@ dssh() {
         return $E_NOERROR
     fi
 
-    lookup_attempt_count=0
+    local lookup_attempt_count=0
+    local info=""
     while [[ $lookup_attempt_count -le ${DSSH_LOOKUP_RETRY_COUNT:-1} ]]; do
       info=$(\cat $AWS_HOSTFILE.*)
       for target in "${params[@]}"; do
@@ -191,11 +206,11 @@ dssh() {
         return $E_UHOST
     fi
 
-    count=$(echo "$info" | wc -l)
+    local count=$(echo "$info" | wc -l)
 
     if [[ $count -gt 1 ]]; then
       while
-          refreshMenu=0
+          local refreshMenu=0
           _print_menu $info
 
           while true; do
@@ -220,12 +235,22 @@ dssh() {
       done
     fi
 
-    addr=`echo $info | awk -F, '{print $2}'`
+    local addr=`echo $info | awk -F, '{print $2}'`
 
     echo "" 1>&2
     _pverbose "Connecting to $addr..."
-    verbose_flag="$(if [[ "$verbose_enabled" == true ]]; then echo "-v"; else echo ""; fi)"
-    ssh_command=(ssh $verbose_flag -o ConnectTimeout=30 ${addr})
+    local -a ssh_command=(ssh)
+    if [[ $verbose_level -gt 0 ]]; then
+      ssh_command+=( "-$(printf 'v%.0s' {1..$verbose_level})" )
+    fi
+    if [[ "$tunnel_port" != "" ]]; then
+      ssh_command+=( "-nNT" )
+      ssh_command+=( "-L" )
+      ssh_command+=( "${tunnel_port}:localhost:${tunnel_port}" )
+    fi
+    ssh_command+=( "-o" )
+    ssh_command+=( "ConnectTimeout=30" )
+    ssh_command+=( "${addr}" )
     ${ssh_command[@]}
     return $?
 }
