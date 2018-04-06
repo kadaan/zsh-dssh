@@ -56,22 +56,24 @@ dssh() {
         (
             cd $ANSIBLE_PATH || return
             source $1
-            local filename=$(_get_envname "$1")
-            if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
-                return
-            fi
-            local i=0
-            _refresh_inventory
-            local result=$?
-            while [ $result -ne 0 ]; do
-                i=$(($i+1))
-                if [ "$i" -gt 5 ]; then
-                    break;
-                fi
+            if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
+              local filename=$(_get_envname "$1")
+              if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
+                  return
+              fi
+              local i=0
+              _refresh_inventory
+              local result=$?
+              while [ $result -ne 0 ]; do
+                  i=$(($i+1))
+                  if [ "$i" -gt 5 ]; then
+                      break;
+                  fi
 
-                _refresh_inventory
-                result=$?
-            done
+                  _refresh_inventory
+                  result=$?
+              done
+            fi
         )
     }
     _update_inventories() {
