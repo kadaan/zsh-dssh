@@ -17,6 +17,7 @@ dssh() {
     _pverbose() { echo -e "${GRAY}$1${NC}" 1>&2; }
     _pwarn() { echo -e "${ORANGE}$1${NC}" 1>&2; }
     _perror() { echo -e "${RED}ERROR: $1${NC}" 1>&2; }
+    _pfatal() { echo -e "${RED}ERROR: $1${NC}" 1>&2; exit 1; }
     _lock() { dotlockfile -l -p $AWS_HOSTFILE.lock; }
     _unlock() { dotlockfile -u -p $AWS_HOSTFILE.lock; }
     _prepare_locking() { trap _unlock EXIT; }
@@ -29,6 +30,33 @@ dssh() {
         echo "    -t, --tunnel=PORT     create a tunnel for the specified port"
         echo "    -v                    verbose logging, multiple -v options increase the verbosity"
         echo "    -h, --help            display this help message"
+    }
+    _install_dependencies() {
+      if [[ "$dependencies_installed" == false ]]; then
+        brew --version &>/dev/null || {
+          /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _pfatal "failed to install brew: $?"
+        }
+        brew list 2>/dev/null | grep "^pyenv$" &>/dev/null  || {
+          brew update &>/dev/null || _pfatal "failed to update brew: $?"
+          brew install 'pyenv' &>/dev/null || _pfatal "failed to install pyenv: $?"
+        }
+        pyenv versions | grep -E '^[* ] 2.7.13 .+$' &>/dev/null || {
+          pyenv install 2.7.13 --skip-existing &>/dev/null || _pfatal "failed to install python 2.7.13: $?"
+        }
+        (
+          eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
+          if [[ ! -d $HOME/.dssh ]]; then
+            pyenv exec virtualenv "$HOME/.dssh" &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
+          fi
+          source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
+          pip install boto six &>/dev/null || _pfatal "failed to install [boto,six]: $?"
+        )
+        dependencies_installed=true
+      fi
+    }
+    _activate_python() {
+      eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
+      source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
     }
     _get_host() {
         local tmp="${1%%,*}"
@@ -54,6 +82,7 @@ dssh() {
     }
     _update_inventory() {
         (
+            _activate_python
             cd $ANSIBLE_PATH || return
             source $1
             if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
@@ -79,6 +108,7 @@ dssh() {
     _update_inventories() {
         _lock
         echo -n "${GRAY}Updating inventories...${NC}" 1>&2
+        _install_dependencies
         _lsenv | while read x; do
           _update_inventory $x &
         done
@@ -109,6 +139,7 @@ dssh() {
 
     local -a params=( "$@" );
     local index=1
+    local dependencies_installed=false
     local refresh_enabled=false
     local verbose_level=0
     local verbose_flag=""
