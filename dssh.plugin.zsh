@@ -49,7 +49,7 @@ dssh() {
             pyenv exec virtualenv "$HOME/.dssh" &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
           fi
           source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
-          pip install boto six &>/dev/null || _pfatal "failed to install [boto,six]: $?"
+          pip install boto boto3 six ansible &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
         )
         dependencies_installed=true
       fi
