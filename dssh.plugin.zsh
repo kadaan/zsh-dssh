@@ -77,7 +77,7 @@ dssh() {
     }
     _refresh_inventory() {
       rm -rf "$AWS_HOSTFILE.$filename"
-      python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
       return $?
     }
     _update_inventory() {
