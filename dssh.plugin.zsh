@@ -52,7 +52,7 @@ dssh() {
           source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
           python -m ensurepip &>/dev/null || _pfatal "failed to ensure baseline pip is installed: $?"
           python -m pip install pip==18.1 &>/dev/null || _pfatal "failed to install pip: $?"
-          python -m pip install boto boto3 six ansible greenlet &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
+          python -m pip install boto==2.46.1 boto3==1.5.27 six==1.12.0 ansible==2.7.2 gevent==1.4.0 &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible,gevent]: $?"
         )
         dependencies_installed=true
       fi
