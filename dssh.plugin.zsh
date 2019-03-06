@@ -52,7 +52,7 @@ dssh() {
           source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
           python -m ensurepip &>/dev/null || _pfatal "failed to ensure baseline pip is installed: $?"
           python -m pip install pip==18.1 &>/dev/null || _pfatal "failed to install pip: $?"
-          python -m pip install boto boto3 six ansible &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
+          python -m pip install boto boto3 six ansible greenlet &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
         )
         dependencies_installed=true
       fi
@@ -62,9 +62,13 @@ dssh() {
       source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
     }
     _get_host() {
-        local tmp="${1%%,*}"
         local host="${1%%,*}"
         echo $host
+    }
+    _get_region() {
+        local tmp="${1%,*}"
+        local region="${tmp##*,}"
+        echo $region
     }
     _get_color() {
         local color="${1##*,}"
@@ -80,8 +84,7 @@ dssh() {
     }
     _refresh_inventory() {
       rm -rf "$AWS_HOSTFILE.$filename"
-      local default_ec2_ini_path="$ANSIBLE_INVENTORY/ec2.ini"
-      BOTO_USE_ENDPOINT_HEURISTICS=True EC2_INI_PATH=${EC2_INI_PATH:-$default_ec2_ini_path} AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
       return $?
     }
     _update_inventory() {
@@ -124,8 +127,9 @@ dssh() {
       local index=1
       for line in $(echo "$1"); do
           local host="$(_get_host $line)"
+          local region="$(_get_region $line)"
           local color="$(_get_color $line)"
-          echo -e "${color}$index:${NC} $host" 1>&2
+          echo -e "${color}$index:${NC} $host ${GRAY}($region)${NC}" 1>&2
           index=$((index+1))
       done
       echo -e "${BOLD_WHITE}R${NC}: Refresh" 1>&2
