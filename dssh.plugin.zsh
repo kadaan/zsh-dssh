@@ -45,11 +45,14 @@ dssh() {
         }
         (
           eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
+          pyenv exec pip install virtualenv==16.2.0 &>/dev/null || fatal "failed to install package virtualenv: $?"
           if [[ ! -d $HOME/.dssh ]]; then
-            pyenv exec virtualenv "$HOME/.dssh" &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
+            pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
           fi
           source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
-          pip install boto boto3 six ansible &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
+          python -m ensurepip &>/dev/null || _pfatal "failed to ensure baseline pip is installed: $?"
+          python -m pip install pip==18.1 &>/dev/null || _pfatal "failed to install pip: $?"
+          python -m pip install boto boto3 six ansible &>/dev/null || _pfatal "failed to install [boto,boto3,six,ansible]: $?"
         )
         dependencies_installed=true
       fi
@@ -77,7 +80,8 @@ dssh() {
     }
     _refresh_inventory() {
       rm -rf "$AWS_HOSTFILE.$filename"
-      AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
+      local default_ec2_ini_path="$ANSIBLE_INVENTORY/ec2.ini"
+      BOTO_USE_ENDPOINT_HEURISTICS=True EC2_INI_PATH=${EC2_INI_PATH:-$default_ec2_ini_path} AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
       return $?
     }
     _update_inventory() {
