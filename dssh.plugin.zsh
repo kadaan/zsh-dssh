@@ -91,7 +91,9 @@ dssh() {
         (
             _activate_python
             cd $ANSIBLE_PATH || return
+            set -o allexport
             source $1
+            set +o allexport
             if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
               local filename=$(_get_envname "$1")
               if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
