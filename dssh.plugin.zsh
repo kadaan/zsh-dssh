@@ -84,7 +84,7 @@ dssh() {
     }
     _refresh_inventory() {
       rm -rf "$AWS_HOSTFILE.$filename"
-      AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort > "$AWS_HOSTFILE.$filename"
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort -k "8,8" -k "2,2" -t "," > "$AWS_HOSTFILE.$filename"
       return $?
     }
     _update_inventory() {
@@ -263,7 +263,14 @@ dssh() {
                     return $E_NOERROR
                 elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
                     _update_inventories
-                    info=$(grep -h -- "$target" $AWS_HOSTFILE.*)
+                    info=$(\cat $AWS_HOSTFILE.*)
+                    for target in "${params[@]}"; do
+                      info=$(echo "$info" | grep -h -- "$target")
+                      if [[ -z "$info" ]]; then
+                        _pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
+                        break;
+                      fi
+                    done
                     refreshMenu=1
                     break
                 elif [ $position -ge 1 ] 2>/dev/null && [ $position -le $count ] 2>/dev/null;  then
