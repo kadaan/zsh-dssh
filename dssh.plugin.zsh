@@ -19,6 +19,7 @@ dssh() {
   local PUBLIC_FQDN_TARGET="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\.com"
   local REQUIRED_PIP_VERSION="18.1"
   local REQUIRED_PYTHON_PACKAGES=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
+  local HOST_QUERY="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement']))"
 
   _pverbose() { echo -e "${GRAY}$1${NC}" 1>&2; }
   _pwarn() { echo -e "${ORANGE}$1${NC}" 1>&2; }
@@ -103,7 +104,7 @@ dssh() {
   }
   _refresh_inventory() {
     rm -rf "$AWS_HOSTFILE.$filename"
-    AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$AWS_HOSTFILE.$filename"
+    AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $HOST_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$AWS_HOSTFILE.$filename"
     return $?
   }
   _update_inventory() {
@@ -182,11 +183,16 @@ dssh() {
     local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
     max_host_length="$((max_host_length+1))"
     local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$COLOR_PREFIX\", \$4, \"$COLOR_SUFFIX\", NR, \"$NC\", $max_host_length-1, \$1, \"$GRAY\", \$3, \"$NC\"}")"
-    local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$NC\", $max_host_length-1, \$1, \$3}" | awk '{print length}' | sort -nr | head -1)"
-    local column_count="$((term_width/longest))"
-    echo "$lines" | rs -e -t -z -w$term_width -G3 0 $column_count 2>/dev/null
-    echo -e "  ${BOLD_WHITE}R${NC}: Refresh" 1>&2
-    echo -e "  ${BOLD_WHITE}Q${NC}: Quit" 1>&2
+    local line_count="$(echo "$lines" | wc -l)"
+    if [[ "$line_count" -gt 10 ]]; then
+      local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$NC\", $max_host_length-1, \$1, \$3}" | awk '{print length}' | sort -nr | head -1)"
+      local column_count="$((term_width/longest))"
+      echo "$lines" | rs -e -t -z -w$term_width -G3 0 $column_count 2>/dev/null
+    else
+      echo "$lines"
+    fi
+    echo -e "  ${BOLD_WHITE}R${NC}: Refresh"
+    echo -e "  ${BOLD_WHITE}Q${NC}: Quit"
     echo "" 1>&2
   }
   _resolve_target() {
