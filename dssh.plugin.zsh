@@ -6,9 +6,11 @@ dssh() {
   local AWS_HOSTFILE=$HOME/.aws-hosts
   local E_NOERROR=0
   local E_NOARGS=103
-  local GRAY='\033[38;5;249m'
-  local ORANGE='\033[38;5;160m'
-  local RED='\033[38;5;208m'
+  local COLOR_PREFIX='\033[38;5;'
+  local COLOR_SUFFIX='m'
+  local GRAY="${COLOR_PREFIX}249${COLOR_SUFFIX}"
+  local ORANGE="${COLOR_PREFIX}160${COLOR_SUFFIX}"
+  local RED="${COLOR_PREFIX}208${COLOR_SUFFIX}"
   local BOLD_WHITE='\033[1m'
   local NC='\033[0m'
   local ENVS=()
@@ -37,7 +39,7 @@ dssh() {
   }
   _install_dependencies() {
     if [[ "$dependencies_installed" == false ]]; then
-      pyenv versions | grep -E '^[* ] 2.7.13$' &>/dev/null || {
+      pyenv sh-shell 2.7.13 &>/dev/null || {
         brew --version &>/dev/null || {
           /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _pfatal "failed to install brew: $?"
         }
@@ -49,17 +51,19 @@ dssh() {
       }
       (
         eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
-        if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
-          pyenv exec pip install virtualenv==16.2.0 &>/dev/null || fatal "failed to install package virtualenv: $?"
-        fi
-        if [[ ! -d $HOME/.dssh ]]; then
-          pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
+        if [[ ! -f $HOME/.dssh/bin/activate ]]; then
+          if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
+            pyenv exec pip install virtualenv==16.2.0 &>/dev/null || fatal "failed to install package virtualenv: $?"
+          fi
+          if [[ ! -d $HOME/.dssh ]]; then
+            pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
+          fi
         fi
         source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
         local checksum_filename="$HOME/.dssh/packages.checksum"
         local expected_checksum=""
         if [[ -f $checksum_filename ]]; then
-          expected_checksum="$(cat $checksum_filename)"
+          expected_checksum="$(\cat $checksum_filename)"
         fi
         local actual_checksum="$(echo "$REQUIRED_PIP_VERSION;;$REQUIRED_PYTHON_PACKAGES[*]" | shasum)"
         if [[ "$expected_checksum" != "$actual_checksum" ]]; then
@@ -99,7 +103,7 @@ dssh() {
   }
   _refresh_inventory() {
     rm -rf "$AWS_HOSTFILE.$filename"
-    AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort -d -k "8,8" -k "1,1" -t "," > "$AWS_HOSTFILE.$filename"
+    AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $ANSIBLE_HOSTS_QUERY)" | sed "s/$/,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$AWS_HOSTFILE.$filename"
     return $?
   }
   _update_inventory() {
@@ -174,38 +178,45 @@ dssh() {
     fi
   }
   _print_menu() {
-    local index=1
-    for line in $(echo "$1"); do
-      local host="$(_get_host $line)"
-      local region="$(_get_region $line)"
-      local color="$(_get_color $line)"
-      echo -e "${color}$index:${NC} $host ${GRAY}($region)${NC}" 1>&2
-      index=$((index+1))
-    done
-    echo -e "${BOLD_WHITE}R${NC}: Refresh" 1>&2
-    echo -e "${BOLD_WHITE}Q${NC}: Quit" 1>&2
+    local term_width="$(tput cols)"
+    local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
+    max_host_length="$((max_host_length+1))"
+    local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$COLOR_PREFIX\", \$3, \"$COLOR_SUFFIX\", NR, \"$NC\", $max_host_length-1, \$1, \"$GRAY\", \$2, \"$NC\"}")"
+    local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$NC\", $max_host_length-1, \$1, \$2}" | awk '{print length}' | sort -nr | head -1)"
+    local column_count="$((term_width/longest))"
+    echo "$lines" | rs -e -t -z -w$term_width -G3 0 $column_count 2>/dev/null
+    echo -e "  ${BOLD_WHITE}R${NC}: Refresh" 1>&2
+    echo -e "  ${BOLD_WHITE}Q${NC}: Quit" 1>&2
     echo "" 1>&2
   }
   _resolve_target() {
     local targets=("$@")
     local lookup_attempt_count=0
-    local info=""
-    while [[ $lookup_attempt_count -le ${DSSH_LOOKUP_RETRY_COUNT:-1} ]]; do
-      info=$(\cat $AWS_HOSTFILE.* )
-      for target in "${targets[@]}"; do
-        info=$(echo "$info" | grep -h -- "$target")
-        if [[ -z "$info" ]]; then
-          _update_inventories
-          break;
+    local filtered_hosts=""
+    while true; do
+      for hostsfile in $AWS_HOSTFILE.*; do
+        local filtered_hosts_partial=$(\cat $hostsfile)
+        for target in "${targets[@]}"; do
+          filtered_hosts_partial=$(echo "$filtered_hosts_partial" | grep -h -- "$target" | sort -d -k "8,8" -k "9,9" -k "1,1" -t ",")
+          if [[ -z "$filtered_hosts_partial" ]]; then
+            break;
+          fi
+        done
+        if [[ "$filtered_hosts_partial" != "" ]]; then
+          if [[ "$filtered_hosts" != "" ]]; then
+            filtered_hosts="$filtered_hosts\n"
+          fi
+          filtered_hosts="$filtered_hosts$filtered_hosts_partial"
         fi
       done
-      if [[ -z "$info" ]]; then
+      if [[ "$filtered_hosts" == "" && $lookup_attempt_count -eq 0 ]]; then
         lookup_attempt_count=$(($lookup_attempt_count+1))
+        _update_inventory
       else
         break
       fi
     done
-    echo "$info"
+    echo "$filtered_hosts" | cut -d "," -f 1,9,10
     if [[ "$WAS_UPDATED" == true ]]; then
       return 1
     else
@@ -228,14 +239,11 @@ dssh() {
             return -1
           elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
             _update_inventories
-            info=$(\cat $AWS_HOSTFILE.*)
-            for target in "${params[@]}"; do
-              info=$(echo "$info" | grep -h -- "$target")
-              if [[ -z "$info" ]]; then
-                _pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
-                break;
-              fi
-            done
+            info="$(_resolve_target "${params[@]}")"
+            if [[ "$info" == "" ]]; then
+              _pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
+              break;
+            fi
             refreshMenu=1
             break
           elif [ $position -ge 1 ] 2>/dev/null && [ $position -le $count ] 2>/dev/null;  then
