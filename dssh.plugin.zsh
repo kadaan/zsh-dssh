@@ -191,7 +191,7 @@ dssh() {
     local lookup_attempt_count=0
     local info=""
     while [[ $lookup_attempt_count -le ${DSSH_LOOKUP_RETRY_COUNT:-1} ]]; do
-      info=$(\cat $AWS_HOSTFILE.* | sort )
+      info=$(\cat $AWS_HOSTFILE.* )
       for target in "${targets[@]}"; do
         info=$(echo "$info" | grep -h -- "$target")
         if [[ -z "$info" ]]; then
