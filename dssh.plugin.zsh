@@ -181,8 +181,8 @@ dssh() {
     local term_width="$(tput cols)"
     local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
     max_host_length="$((max_host_length+1))"
-    local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$COLOR_PREFIX\", \$3, \"$COLOR_SUFFIX\", NR, \"$NC\", $max_host_length-1, \$1, \"$GRAY\", \$2, \"$NC\"}")"
-    local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$NC\", $max_host_length-1, \$1, \$2}" | awk '{print length}' | sort -nr | head -1)"
+    local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$COLOR_PREFIX\", \$4, \"$COLOR_SUFFIX\", NR, \"$NC\", $max_host_length-1, \$1, \"$GRAY\", \$3, \"$NC\"}")"
+    local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$NC\", $max_host_length-1, \$1, \$3}" | awk '{print length}' | sort -nr | head -1)"
     local column_count="$((term_width/longest))"
     echo "$lines" | rs -e -t -z -w$term_width -G3 0 $column_count 2>/dev/null
     echo -e "  ${BOLD_WHITE}R${NC}: Refresh" 1>&2
@@ -216,7 +216,7 @@ dssh() {
         break
       fi
     done
-    echo "$filtered_hosts" | cut -d "," -f 1,9,10
+    echo "$filtered_hosts" | cut -d "," -f 1,2,9,10
     if [[ "$WAS_UPDATED" == true ]]; then
       return 1
     else
