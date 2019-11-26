@@ -211,7 +211,7 @@ dssh() {
       done
       if [[ "$filtered_hosts" == "" && $lookup_attempt_count -eq 0 ]]; then
         lookup_attempt_count=$(($lookup_attempt_count+1))
-        _update_inventory
+        _update_inventories
       else
         break
       fi
