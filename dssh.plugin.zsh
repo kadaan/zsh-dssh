@@ -81,19 +81,6 @@ dssh() {
     eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
     source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
   }
-  _get_host() {
-      local host="${1%%,*}"
-      echo $host
-  }
-  _get_region() {
-      local tmp="${1%,*}"
-      local region="${tmp##*,}"
-      echo $region
-  }
-  _get_color() {
-      local color="${1##*,}"
-      echo -e "\\033[38;5;${color}m"
-  }
   _lsenv() {
       ls -1 $HOME/.env/*.sh
   }
