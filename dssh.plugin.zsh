@@ -35,6 +35,7 @@ dssh() {
     echo "Usage: dssh [options] tag"
     echo "    -r, --refresh         refresh the cached host information"
     echo "    -t, --tunnel=PORT     create a tunnel for the specified port"
+    echo "    -c, --command=COMMAND run the specified command and exit"
     echo "    -v                    verbose logging, multiple -v options increase the verbosity"
     echo "    -h, --help            display this help message"
   }
@@ -80,6 +81,19 @@ dssh() {
   _activate_python() {
     eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
     source "$HOME/.dssh/bin/activate" &>/dev/null || _pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
+  }
+  _get_host() {
+      local host="${1%%,*}"
+      echo $host
+  }
+  _get_region() {
+      local tmp="${1%,*}"
+      local region="${tmp##*,}"
+      echo $region
+  }
+  _get_color() {
+      local color="${1##*,}"
+      echo -e "\\033[38;5;${color}m"
   }
   _lsenv() {
       ls -1 $HOME/.env/*.sh
@@ -266,6 +280,7 @@ dssh() {
   local verbose_level=0
   local verbose_flag=""
   local tunnel_port=""
+  local command_string=""
   local completions_enabled=false
   for var in "$@"; do
     case "$var" in
@@ -303,16 +318,25 @@ dssh() {
         completions_enabled=true
         params[$index]=()
       ;;
+      -t=* | --tunnel=*)
+        tunnel_port=${params[$index]##*=}
+        params[$index]=()
+      ;;
+      -c=* | --command=*)
+        command_string=${params[$index]##*=}
+        params[$index]=()
+      ;;
       *)
-        if [[ $var == -t=* || $var == --tunnel=* ]]; then
-          tunnel_port=${params[$index]##*=}
-          params[$index]=()
-        else
-          index=$((index+1))
-        fi
+        index=$((index+1))
       ;;
     esac
   done
+
+  if [[ "$tunnel_port" != "" && "$command_string" != "" ]]; then
+    _perror "--tunnel and --command are multually exclusive parameters"
+    _usage
+    return $E_NOARGS
+  fi
 
   if [[ "$refresh_enabled" = true ]]; then
     _update_inventories
@@ -387,19 +411,28 @@ dssh() {
   fi
 
   echo "" 1>&2
-  _pverbose "Connecting to $addr..."
+  local connection_message="Connecting to"
   local -a ssh_command=(ssh)
   if [[ $verbose_level -gt 0 ]]; then
     ssh_command+=( "-$(printf 'v%.0s' {1..$verbose_level})" )
   fi
   if [[ "$tunnel_port" != "" ]]; then
+    connection_message="Opening tunnel for port $tunnel_port to"
     ssh_command+=( "-nNT" )
     ssh_command+=( "-L" )
     ssh_command+=( "${tunnel_port}:localhost:${tunnel_port}" )
   fi
+  if [[ "$command_string" != "" ]]; then
+    connection_message="Running command \`$command_string\` on"
+    ssh_command+=( "-t" )
+  fi
   ssh_command+=( "-o" )
   ssh_command+=( "ConnectTimeout=10" )
   ssh_command+=( "${addr}" )
+  if [[ "$command_string" != "" ]]; then
+    ssh_command+=( "${command_string}" )
+  fi
+  _pverbose "$connection_message $addr..."
   ${ssh_command[@]}
   return $?
 }
