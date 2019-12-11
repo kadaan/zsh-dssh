@@ -352,6 +352,7 @@ dssh() {
   fi
 
   local addr=""
+  local desc=""
   if [[ ${#params[@]} -eq 1 && "${params[1]}" =~ $PUBLIC_FQDN_TARGET ]]; then
     addr="${params[1]}"
   else
@@ -387,6 +388,7 @@ dssh() {
       fi
       addr=`echo $info | awk -F, '{print $2}'`
       local name=`echo $info | awk -F, '{print $1}'`
+      desc=" ($name) [$(echo $info | awk -F, '{print $3}')]"
       if ! nc -G3 -z $addr 22 &>/dev/null; then
         if [[ "$WAS_UPDATED" == "false" ]]; then
           _update_inventories
@@ -405,6 +407,7 @@ dssh() {
             return $result
           fi
           addr=`echo $info | awk -F, '{print $2}'`
+          desc=`echo $info | awk -F, '{print "(" $1 ") [" $3 "]"}'`
         fi
       fi
       fi
@@ -432,7 +435,7 @@ dssh() {
   if [[ "$command_string" != "" ]]; then
     ssh_command+=( "${command_string}" )
   fi
-  _pverbose "$connection_message $addr..."
+  _pverbose "$connection_message ${addr}${desc}..."
   ${ssh_command[@]}
   return $?
 }
