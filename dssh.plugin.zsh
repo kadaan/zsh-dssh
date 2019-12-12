@@ -2,7 +2,6 @@ dssh() {
   set +m
   set -o pipefail
 
-
   local AWS_HOSTFILE=$HOME/.aws-hosts
   local E_NOERROR=0
   local E_NOARGS=103
@@ -20,6 +19,7 @@ dssh() {
   local REQUIRED_PIP_VERSION="18.1"
   local REQUIRED_PYTHON_PACKAGES=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
   local HOST_QUERY="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement']))"
+  local DEFAULT_PARAMETERS=( "-o ConnectTimeout=10" )
 
   _pverbose() { echo -e "${GRAY}$1${NC}" 1>&2; }
   _pwarn() { echo -e "${ORANGE}$1${NC}" 1>&2; }
@@ -32,10 +32,9 @@ dssh() {
     echo
     echo "Locates and connects to AWS servers server via SSH."
     echo
-    echo "Usage: dssh [options] tag"
+    echo "Usage: dssh [ssh options] [options] tag"
     echo "    -r, --refresh         refresh the cached host information"
-    echo "    -t, --tunnel=PORT     create a tunnel for the specified port"
-    echo "    -c, --command=COMMAND run the specified command and exit"
+    echo "    --command=COMMAND     run the specified command and exit"
     echo "    -v                    verbose logging, multiple -v options increase the verbosity"
     echo "    -h, --help            display this help message"
   }
@@ -55,7 +54,7 @@ dssh() {
         eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _pfatal "failed to switch to python 2.7.13: $?"
         if [[ ! -f $HOME/.dssh/bin/activate ]]; then
           if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
-            pyenv exec pip install virtualenv==16.2.0 &>/dev/null || fatal "failed to install package virtualenv: $?"
+            pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _pfatal "failed to install package virtualenv: $?"
           fi
           if [[ ! -d $HOME/.dssh ]]; then
             pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _pfatal "failed to create virtualenv '$HOME/.dssh': $?"
@@ -246,7 +245,7 @@ dssh() {
             return -1
           elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
             _update_inventories
-            info="$(_resolve_target "${params[@]}")"
+            info="$(_resolve_target "${tags[@]}")"
             if [[ "$info" == "" ]]; then
               _pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
               break;
@@ -264,6 +263,62 @@ dssh() {
       done
     fi
   }
+  _add_ssh_option() {
+    local ssh_option_key_regex=""
+    local ssh_option_option_regex="^-o .+=.+$"
+    local ssh_option_arg_regex="^-[a-zA-Z] .+$"
+    if [[ "$1" =~ $ssh_option_option_regex ]]; then
+      ssh_option_key_regex="^${1%%=*}.+$"
+    elif [[ "$1" =~ $ssh_option_arg_regex ]]; then
+      ssh_option_key_regex="^${1%% *} .*$"
+    else
+      ssh_option_key_regex="^${1%% *}$"
+    fi
+    local updated_ssh_option=false
+    for ((i = 1; i <= ${#ssh_options[@]}; ++i)); do
+      if [[ "${ssh_options[$i]}" =~ $ssh_option_key_regex ]]; then
+        ssh_options[$i]="$1"
+        updated_ssh_option=true
+        break
+      fi
+    done
+    if [[ "$updated_ssh_option" == "false" ]]; then
+      ssh_options+=( "$1" )
+    fi
+  }
+  _parse_parameter() {
+    local shift_count=1
+    case "$1" in
+      -r | --refresh)
+        refresh_enabled=true
+      ;;
+      -v | -vv | -vvv | -vvvv)
+      ;;
+      --completions)
+        completions_enabled=true
+      ;;
+      -c=* | --command=*)
+        command_string="${1#*=}"
+      ;;
+      -v | -vv | -vvv | -vvvv)
+        _add_ssh_option "-$(printf 'v%.0s' {1..$verbose_level})"
+      ;;
+      -4 | -6 | -A | -a | -C | -f | -G | -g | -K | -k | -M | -N | -n | -q | -s | -T | -t | -V | -X | -x | -Y | -y)
+        _add_ssh_option "$1"
+      ;;
+      -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -L | -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w)
+        _add_ssh_option "$1 $2"
+        shift_count=2
+      ;;
+      -B\ * | -b\ * | -c\ * | -D\ * | -E\ * | -e\ * | -F\ * | -I\ * | -i\ * | -J\ * | -L\ * | -l\ * | -m\ * | -O\ * | -o\ * | -p\ * | -Q\ * | -R\ * | -S\ * | -W\ * | -w\ *)
+        _add_ssh_option "$1"
+      ;;
+      *)
+        tags+=( "$1" )
+      ;;
+    esac
+    return $shift_count
+  }
 
   _prepare_locking
 
@@ -273,28 +328,23 @@ dssh() {
     return $E_NOARGS
   fi
 
-  local -a params=( "$@" );
-  local index=1
   local dependencies_installed=false
   local refresh_enabled=false
   local verbose_level=0
-  local verbose_flag=""
-  local tunnel_port=""
+  local ssh_options=()
+  local tags=()
   local command_string=""
   local completions_enabled=false
+  local in_ssh_options=false
+  local end_ssh_option_parsing=false
   for var in "$@"; do
     case "$var" in
       -h | --help)
         _usage
         return $E_NOERROR
       ;;
-      -r | --refresh)
-        refresh_enabled=true
-        params[$index]=()
-      ;;
       -v | -vv | -vvv | -vvvv)
-        verbose_flag=${params[$index]}
-        local verbose_elements=${params[$index]##-}
+        local verbose_elements=${var##-}
         verbose_level=${#verbose_elements}
         if [[ $verbose_level -ge 4 ]]; then
           if [[ "$ZSH_VERSION" != "" ]]; then
@@ -312,31 +362,27 @@ dssh() {
           fi
           set -x
         fi
-        params[$index]=()
-      ;;
-      --completions)
-        completions_enabled=true
-        params[$index]=()
-      ;;
-      -t=* | --tunnel=*)
-        tunnel_port=${params[$index]##*=}
-        params[$index]=()
-      ;;
-      -c=* | --command=*)
-        command_string=${params[$index]##*=}
-        params[$index]=()
-      ;;
-      *)
-        index=$((index+1))
       ;;
     esac
   done
 
-  if [[ "$tunnel_port" != "" && "$command_string" != "" ]]; then
-    _perror "--tunnel and --command are multually exclusive parameters"
-    _usage
-    return $E_NOARGS
+  for var in "${DEFAULT_PARAMETERS[@]}"; do
+    _parse_parameter "$var"
+  done
+
+  local dssh_config_file="${DSSH_CONFIG_FILE:-$HOME/.dsshrc}"
+  if [[ -f "$dssh_config_file" ]]; then
+    while IFS="" read -r var || [ -n "$var" ]; do
+      _parse_parameter "$var"
+    done < $dssh_config_file
   fi
+
+  while [[ $# -gt 0 ]]; do
+    local shift_count=1
+    _parse_parameter $@
+    shift_count="$?"
+    shift $shift_count
+  done
 
   if [[ "$refresh_enabled" = true ]]; then
     _update_inventories
@@ -347,29 +393,29 @@ dssh() {
     return $E_NOERROR
   fi
 
-  if [[ ${#params[@]} -eq 0 ]]; then
+  if [[ ${#tags[@]} -eq 0 ]]; then
     return $E_NOERROR
   fi
 
   local addr=""
   local desc=""
-  if [[ ${#params[@]} -eq 1 && "${params[1]}" =~ $PUBLIC_FQDN_TARGET ]]; then
-    addr="${params[1]}"
+  if [[ ${#tags[@]} -eq 1 && "${tags[1]}" =~ $PUBLIC_FQDN_TARGET ]]; then
+    addr="${tags[1]}"
   else
     local info=""
-    info="$(_resolve_target "${params[@]}")"
+    info="$(_resolve_target "${tags[@]}")"
     if [[ "$?" -eq 1 ]]; then
       WAS_UPDATED=true
     fi
     if [ -z "$info" ]; then
       _update_inventories
-      info="$(_resolve_target "${params[@]}")"
+      info="$(_resolve_target "${tags[@]}")"
       if [[ "$?" -eq 1 ]]; then
         WAS_UPDATED=true
       fi
       if [ -z "$info" ]; then
-        _pwarn "Host '${params[*]}' not found in inventory.  Attempting to connect anyway..."
-        addr="${params[*]}"
+        _pwarn "Host '${tags[*]}' not found in inventory.  Attempting to connect anyway..."
+        addr="${tags[*]}"
       fi
     fi
     if [[ "$addr" == "" ]]; then
@@ -397,7 +443,7 @@ dssh() {
             WAS_UPDATED=true
           fi
           if [[ "$info" == "" ]]; then
-            info="$(_resolve_target "${params[@]}")"
+            info="$(_resolve_target "${tags[@]}")"
           fi
           _prompt_server
           local result="$?"
@@ -416,21 +462,12 @@ dssh() {
   echo "" 1>&2
   local connection_message="Connecting to"
   local -a ssh_command=(ssh)
-  if [[ $verbose_level -gt 0 ]]; then
-    ssh_command+=( "-$(printf 'v%.0s' {1..$verbose_level})" )
-  fi
-  if [[ "$tunnel_port" != "" ]]; then
-    connection_message="Opening tunnel for port $tunnel_port to"
-    ssh_command+=( "-nNT" )
-    ssh_command+=( "-L" )
-    ssh_command+=( "${tunnel_port}:localhost:${tunnel_port}" )
-  fi
   if [[ "$command_string" != "" ]]; then
     connection_message="Running command \`$command_string\` on"
-    ssh_command+=( "-t" )
   fi
-  ssh_command+=( "-o" )
-  ssh_command+=( "ConnectTimeout=10" )
+  if [[ "${#ssh_options[@]}" -gt 0 ]]; then
+    ssh_command+=( "${ssh_options[@]}" )
+  fi
   ssh_command+=( "${addr}" )
   if [[ "$command_string" != "" ]]; then
     ssh_command+=( "${command_string}" )
