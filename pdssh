@@ -9,6 +9,7 @@ set +m
 set -o pipefail
 
 local WAS_UPDATED=false
+local -a sort_command=("cat" "-u")
 
 _usage() {
   echo
@@ -17,6 +18,7 @@ _usage() {
   echo "Usage: pdssh [ssh options] [options] tag"
   echo "    -r, --refresh         refresh the cached host information"
   echo "    --command=COMMAND     run the specified command and exit"
+  echo "    --sort                sort the results by server"
   echo "    -v                    verbose logging, multiple -v options increase the verbosity"
   echo "    -h, --help            display this help message"
 }
@@ -32,6 +34,9 @@ _parse_parameter() {
     ;;
     -l\ * | -t\ * | -u\ * | -f\ *)
       _dssh_add_ssh_option "$1"
+    ;;
+    --sort)
+      sort_command=("sort" "-s" "-t" ":" "-k" "1")
     ;;
     *)
       _dssh_parse_common_parameters "$1"
@@ -152,5 +157,9 @@ if [[ "$command_string" != "" ]]; then
   ssh_command+=( "${command_string}" )
 fi
 _dssh_pverbose "$connection_message"
-env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]}
+local awk_map=""
+for f in $HOME/.aws-hosts.*; do
+  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");map[f[2]] = f[1]\" (\"f[9]\"):\"}"
+done
+env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} | unbuffer -p awk -F ":" "BEGIN{$awk_map}{ \$1 = map[\$1]; print }" | ${sort_command[@]}
 return $?

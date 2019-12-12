@@ -23,6 +23,12 @@ function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
 function _dssh_install_dependencies() {
   if [[ "$dependencies_installed" == false ]]; then
+    which -a pdsh &>/dev/null || {
+      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
+    }
+    which -a unbuffer &>/dev/null || {
+      brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
+    }
     pyenv sh-shell 2.7.13 &>/dev/null || {
       brew --version &>/dev/null || {
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
