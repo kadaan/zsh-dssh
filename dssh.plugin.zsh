@@ -158,7 +158,7 @@ function _dssh_print_menu() {
   local term_width="$(tput cols)"
   local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
   max_host_length="$((max_host_length+1))"
-  local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$_dssh_color_prefix\", \$4, \"$_dssh_color_suffix\", NR, \"$NC\", $max_host_length-1, \$1, \"$_dssh_gray\", \$3, \"$_dssh_nc\"}")"
+  local lines="$(echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)%s\n\", \"$_dssh_color_prefix\", \$4, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$3, \"$_dssh_nc\"}")"
   local line_count="$(echo "$lines" | wc -l)"
   if [[ "$line_count" -gt 10 ]]; then
     local longest="$(echo "$1" | awk -F ',' "{printf \"%3s: %s%-*s (%s)\n\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \$3}" | awk '{print length}' | sort -nr | head -1)"
