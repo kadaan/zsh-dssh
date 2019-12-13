@@ -164,6 +164,7 @@ while (<\$hosts_file>) {
   chomp;
   my @f = split(/,/, \$_, -1);
   \$host_map{\$f[(2)-1]} = "${_dssh_color_prefix}" . \$f[(11)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
+  \$host_map{(split /\\./, \$f[(2)-1])[0]} = "${_dssh_color_prefix}" . \$f[(11)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
 }
 EOF
 )
@@ -176,7 +177,7 @@ use warnings;
 local \$, = ' ';
 local \$\ = "\n";
 my %host_map;
-my \$fqdn_regex = qr/ec2-\\d+-\\d+-\\d+-\\d+\\..+?\\.com/p;
+my \$fqdn_regex = qr/(ec2-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.amazonaws\\.com)?)/p;
 $awk_map
 while (<>) {
   chomp;
@@ -186,7 +187,7 @@ while (<>) {
   while (\$has_match > 0) {
 	  my \$host = substr(\$line, (\$RSTART)-1, \$RLENGTH);
     my \$host_regex = \$host;
-    \$host_regex =~ s/[\\\\.]/\\\\\\\\\$&/g;
+    \$host_regex =~ s/[\\.]/\\\\\$&/g;
     if (defined \$host_map{\$host}) {
       \$matched_hosts{\$host_regex} = \$host_map{\$host};
     }
@@ -194,7 +195,7 @@ while (<>) {
     \$has_match = \$line =~ /\$fqdn_regex/g ? scalar(\$RLENGTH = length(\$&), \$RSTART = length(\$\`)+1) : 0;
   }
 
-  while ( (my \$host_pattern, my \$host_value) = each %host_map ) {
+  while ( (my \$host_pattern, my \$host_value) = each %matched_hosts ) {
     my \$replacement = '"'.(\$host_value).'"';
     \$_ =~ s/&/\$&/g, s/\$host_pattern/eval \$replacement/ge;
   }
