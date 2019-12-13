@@ -141,7 +141,8 @@ function _dssh_is_inventory_old() {
   fi
 }
 function _dssh_update_inventories() {
-  if [[ "$WAS_UPDATED" == "false" ]]; then
+  local force="${1:-false}"
+  if [[ "$force" == "true" || "$WAS_UPDATED" == "false" ]]; then
     _dssh_lock
     echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
     _dssh_install_dependencies
@@ -220,7 +221,7 @@ function _dssh_prompt_server() {
         if [[ "$position" = "Q" ]] || [[ "$position" = "q" ]]; then
           return -1
         elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
-          _dssh_update_inventories
+          _dssh_update_inventories "true"
           info="$(_dssh_resolve_target "${tags[@]}")"
           if [[ "$info" == "" ]]; then
             _dssh_pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
