@@ -11,7 +11,7 @@ _dssh_nc='\033[0m'
 _dssh_public_fqdn_target="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\.com"
 _dssh_required_pip_version="18.1"
 _dssh_required_python_packages=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
-_dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement']))"
+_dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
 
 function _dssh_pverbose() { echo -e "${_dssh_gray}$1${_dssh_nc}" 1>&2; }
 function _dssh_pwarn() { echo -e "${_dssh_orange}$1${_dssh_nc}" 1>&2; }
@@ -141,8 +141,7 @@ function _dssh_is_inventory_old() {
   fi
 }
 function _dssh_update_inventories() {
-  local force="${1:-false}"
-  if [[ "$force" == "true" || "$WAS_UPDATED" == "false" ]]; then
+  if [[ "$WAS_UPDATED" == "false" ]]; then
     _dssh_lock
     echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
     _dssh_install_dependencies
@@ -199,7 +198,7 @@ function _dssh_resolve_target() {
       break
     fi
   done
-  echo "$filtered_hosts" | cut -d "," -f 1,2,9,10
+  echo "$filtered_hosts" | cut -d "," -f 1,2,9,11
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
@@ -221,7 +220,7 @@ function _dssh_prompt_server() {
         if [[ "$position" = "Q" ]] || [[ "$position" = "q" ]]; then
           return -1
         elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
-          _dssh_update_inventories "true"
+          _dssh_update_inventories
           info="$(_dssh_resolve_target "${tags[@]}")"
           if [[ "$info" == "" ]]; then
             _dssh_pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
@@ -286,13 +285,8 @@ function _dssh_parse_common_parameters() {
   return $shift_count
 }
 
-# source "${0:h}/dssh"
-# source "${0:h}/pdssh"
-
 0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
 0=${${(M)0:#/*}:-$PWD/$0}
-
-# Then ${0:h} to get plugin's directory
 
 if [[ ${zsh_loaded_plugins[-1]} != */zsh-dssh && -z ${fpath[(r)${0:h}]} ]]
 then
