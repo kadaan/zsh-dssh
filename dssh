@@ -1,11 +1,6 @@
 if [[ $0 != dssh || -n $ZSH_SCRIPT ]]; then
-    # Handle $0 according to the Zsh Plugin Standard:
-    # http://zdharma.org/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
     0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
     0=${${(M)0##/*}:-$PWD/$0}
-
-    # Such global variable is expected to be typeset'd -g in the plugin.zsh
-    # file. Here it's restored in case of the function being run as a script.
     typeset ZSH_DSSH_DIR=${0:h}
 fi
 
@@ -179,7 +174,7 @@ fi
 
 echo "" 1>&2
 local connection_message="Connecting to"
-local -a ssh_command=(ssh)
+local -a ssh_command=( "ssh" )
 if [[ "$command_string" != "" ]]; then
   connection_message="Running command \`$command_string\` on"
 fi

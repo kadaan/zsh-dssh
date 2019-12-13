@@ -1,8 +1,7 @@
 if [[ $0 != pdssh || -n $ZSH_SCRIPT ]]; then
-    # Handle $0 according to the Zsh Plugin Standard:
-    # http://zdharma.org/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
     0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
     0=${${(M)0##/*}:-$PWD/$0}
+    typeset ZSH_DSSH_DIR=${0:h}
 fi
 
 set +m
@@ -25,7 +24,7 @@ _usage() {
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    -S | -q | -b | -N | -d)
+    -q | -b | -N | -d)
       _dssh_add_ssh_option "$1"
     ;;
     -l | -t | -u | -f)
@@ -148,7 +147,7 @@ if [[ "$server_count" -ne 1 ]]; then
   server_message="${server_message}s"
 fi
 local connection_message="Running command against $server_message..."
-local -a ssh_command=( "pdsh" "-R" "ssh")
+local -a ssh_command=( "pdsh" "-S" "-R" "ssh")
 if [[ "${#ssh_options[@]}" -gt 0 ]]; then
   ssh_command+=( "${ssh_options[@]}" )
 fi
