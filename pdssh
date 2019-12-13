@@ -159,7 +159,7 @@ fi
 _dssh_pverbose "$connection_message"
 local awk_map=""
 for f in $HOME/.aws-hosts.*; do
-  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");map[f[2]] = f[1]\" (\"f[9]\"):\"}"
+  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");map[f[2]] = \"${_dssh_color_prefix}\"f[11]\"${_dssh_color_suffix}\"f[1]\"${_dssh_nc} ${_dssh_gray}(\"f[9]\")${_dssh_nc}:\"}"
 done
-env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} | unbuffer -p awk -F ":" "BEGIN{$awk_map}{ \$1 = map[\$1]; print }" | ${sort_command[@]}
+env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p awk -F ":" "BEGIN{$awk_map}{ \$1 = map[\$1]; print }" | ${sort_command[@]}
 return $?
