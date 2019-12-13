@@ -9,7 +9,6 @@ set -o pipefail
 
 local WAS_UPDATED=false
 local -a sort_command=("cat" "-u")
-
 _usage() {
   echo
   echo "Locates and runs commands on multiple AWS servers via SSH."
@@ -156,9 +155,52 @@ if [[ "$command_string" != "" ]]; then
   ssh_command+=( "${command_string}" )
 fi
 _dssh_pverbose "$connection_message"
-local awk_map=""
+local awk_map="my \$hosts_file;"
 for f in $HOME/.aws-hosts.*; do
-  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");host_map[f[2]] = \"${_dssh_color_prefix}\"f[11]\"${_dssh_color_suffix}\"f[1]\"${_dssh_nc} ${_dssh_gray}(\"f[9]\")${_dssh_nc}\"}"
+awk_map=$(\cat <<EOF
+$awk_map
+open(\$hosts_file, '$f') || die 'Cannot open file "$f".';
+while (<\$hosts_file>) {
+  chomp;
+  my @f = split(/,/, \$_, -1);
+  \$host_map{\$f[(2)-1]} = "${_dssh_color_prefix}" . \$f[(11)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
+}
+EOF
+)
 done
-env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p awk -F ":" "BEGIN{fqdn_regex=\"ec2-[[:digit:]]+-[[:digit:]]+-[[:digit:]]+-[[:digit:]]+\\..+\\.com\";$awk_map}{line=\$0;delete matched_hosts;has_match=match(line,fqdn_regex);while(has_match>0){host=substr(line,RSTART,RLENGTH);host_regex=host;gsub(/[\\\\.]/,\"\\\\\\\\&\",host_regex);if(host in host_map){matched_hosts[host_regex]=host_map[host]}gsub(host_regex,\"\",line);has_match=match(line, fqdn_regex)}for(host_pattern in  matched_hosts){gsub(host_pattern,matched_hosts[host_pattern])}print}" | ${sort_command[@]}
+local enrich_script=$(\cat <<EOF
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+local \$, = ' ';
+local \$\ = "\n";
+my %host_map;
+my \$fqdn_regex = qr/ec2-\\d+-\\d+-\\d+-\\d+\\..+?\\.com/p;
+$awk_map
+while (<>) {
+  chomp;
+  my \$line = \$_;
+  my %matched_hosts;
+  my \$has_match = \$line =~ /\$fqdn_regex/g ? scalar(my \$RLENGTH = length(\$&), my \$RSTART = length(\$\`)+1) : 0;
+  while (\$has_match > 0) {
+	  my \$host = substr(\$line, (\$RSTART)-1, \$RLENGTH);
+    my \$host_regex = \$host;
+    \$host_regex =~ s/[\\\\.]/\\\\\\\\\$&/g;
+    if (defined \$host_map{\$host}) {
+      \$matched_hosts{\$host_regex} = \$host_map{\$host};
+    }
+    \$line =~ s/\$host_regex//g;
+    \$has_match = \$line =~ /\$fqdn_regex/g ? scalar(\$RLENGTH = length(\$&), \$RSTART = length(\$\`)+1) : 0;
+  }
+
+  while ( (my \$host_pattern, my \$host_value) = each %host_map ) {
+    my \$replacement = '"'.(\$host_value).'"';
+    \$_ =~ s/&/\$&/g, s/\$host_pattern/eval \$replacement/ge;
+  }
+  print \$_;
+}
+EOF
+)
+env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p perl -e "$enrich_script" | ${sort_command[@]}
 return $?
