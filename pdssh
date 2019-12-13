@@ -15,7 +15,7 @@ _usage() {
   echo
   echo "Locates and runs commands on multiple AWS servers via SSH."
   echo
-  echo "Usage: pdssh [ssh options] [options] tag"
+  echo "Usage: pdssh [pdsh options] [options] tag"
   echo "    -r, --refresh         refresh the cached host information"
   echo "    --command=COMMAND     run the specified command and exit"
   echo "    --sort                sort the results by server"
@@ -159,7 +159,7 @@ fi
 _dssh_pverbose "$connection_message"
 local awk_map=""
 for f in $HOME/.aws-hosts.*; do
-  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");map[f[2]] = \"${_dssh_color_prefix}\"f[11]\"${_dssh_color_suffix}\"f[1]\"${_dssh_nc} ${_dssh_gray}(\"f[9]\")${_dssh_nc}:\"}"
+  awk_map="${awk_map}while((getline line < \"$f\") > 0) {split(line,f,\",\");host_map[f[2]] = \"${_dssh_color_prefix}\"f[11]\"${_dssh_color_suffix}\"f[1]\"${_dssh_nc} ${_dssh_gray}(\"f[9]\")${_dssh_nc}\"}"
 done
-env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p awk -F ":" "BEGIN{$awk_map}{ \$1 = map[\$1]; print }" | ${sort_command[@]}
+env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p awk -F ":" "BEGIN{fqdn_regex=\"ec2-[[:digit:]]+-[[:digit:]]+-[[:digit:]]+-[[:digit:]]+\\..+\\.com\";$awk_map}{line=\$0;delete matched_hosts;has_match=match(line,fqdn_regex);while(has_match>0){host=substr(line,RSTART,RLENGTH);host_regex=host;gsub(/[\\\\.]/,\"\\\\\\\\&\",host_regex);if(host in host_map){matched_hosts[host_regex]=host_map[host]}gsub(host_regex,\"\",line);has_match=match(line, fqdn_regex)}for(host_pattern in  matched_hosts){gsub(host_pattern,matched_hosts[host_pattern])}print}" | ${sort_command[@]}
 return $?
