@@ -9,12 +9,14 @@ set -o pipefail
 
 local WAS_UPDATED=false
 local -a sort_command=("cat" "-u")
+local list_hosts=false
 _usage() {
   echo
   echo "Locates and runs commands on multiple AWS servers via SSH."
   echo
   echo "Usage: pdssh [pdsh options] [options] tag"
   echo "    -r, --refresh         refresh the cached host information"
+  echo "    --list-hosts          lists the targeted hosts and exit"
   echo "    --command=COMMAND     run the specified command and exit"
   echo "    --sort                sort the results by server"
   echo "    -v                    verbose logging, multiple -v options increase the verbosity"
@@ -23,7 +25,7 @@ _usage() {
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    -q | -b | -N | -d)
+    -b | -N | -d)
       _dssh_add_ssh_option "$1"
     ;;
     -l | -t | -u | -f)
@@ -35,6 +37,9 @@ _parse_parameter() {
     ;;
     --sort)
       sort_command=("sort" "-s" "-t" ":" "-k" "1")
+    ;;
+    --list-hosts)
+      list_hosts=true
     ;;
     *)
       _dssh_parse_common_parameters "$1"
@@ -137,6 +142,11 @@ else
   if [[ "$addr" == "" ]]; then
     addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
   fi
+fi
+
+if [[ "$list_hosts" == "true" ]]; then
+  _dssh_print_menu_hosts $info
+  return $_dssh_e_noerror
 fi
 
 echo "" 1>&2

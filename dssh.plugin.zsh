@@ -154,7 +154,7 @@ function _dssh_update_inventories() {
     _dssh_unlock
   fi
 }
-function _dssh_print_menu() {
+function _dssh_print_menu_hosts() {
   local term_width="$(tput cols)"
   local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
   max_host_length="$((max_host_length+1))"
@@ -167,6 +167,9 @@ function _dssh_print_menu() {
   else
     echo "$lines"
   fi
+}
+function _dssh_print_menu() {
+  _dssh_print_menu_hosts "$1"
   echo -e "  ${_dssh_bold_white}R${_dssh_nc}: Refresh"
   echo -e "  ${_dssh_bold_white}Q${_dssh_nc}: Quit"
   echo "" 1>&2
@@ -179,19 +182,36 @@ function _dssh_resolve_target() {
     for hostsfile in $_dssh_aws_hostfile.*; do
       local filtered_hosts_partial=$(\cat $hostsfile)
       for target in "${targets[@]}"; do
-        filtered_hosts_partial=$(echo "$filtered_hosts_partial" | grep -h -- "$target" | sort -d -k "8,8" -k "9,9" -k "1,1" -t ",")
-        if [[ -z "$filtered_hosts_partial" ]]; then
+        local filtered_hosts_target_partial=""
+        for target_part in $(echo $target | sed "s/,/ /g");do
+          local grep_command=( 'grep' '-h' )
+          if [[ ${target_part:0:1} == "%" ]]; then
+            grep_command+=( '-v' )
+            target_part="${target_part:1}"
+          fi
+          grep_command+=( '--' "$target_part" )
+          local filtered_hosts_target_partial_result=""
+          filtered_hosts_target_partial_result=$(echo "$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "8,8" -k "9,9" -k "1,1" -t ",")
+          if [[ ${#filtered_hosts_target_partial_result} -gt 0 ]]; then
+            if [[ ${#filtered_hosts_target_partial} -gt 0 ]]; then
+              filtered_hosts_target_partial="$filtered_hosts_target_partial\n"
+            fi
+            filtered_hosts_target_partial="$filtered_hosts_target_partial$filtered_hosts_target_partial_result"
+          fi
+        done
+        filtered_hosts_partial="$filtered_hosts_target_partial"
+        if [[ ${#filtered_hosts_partial} -le 0 ]]; then
           break;
         fi
       done
-      if [[ "$filtered_hosts_partial" != "" ]]; then
-        if [[ "$filtered_hosts" != "" ]]; then
+      if [[ ${#filtered_hosts_partial} -gt 0 ]]; then
+        if [[ ${#filtered_hosts} -gt 0 ]]; then
           filtered_hosts="$filtered_hosts\n"
         fi
         filtered_hosts="$filtered_hosts$filtered_hosts_partial"
       fi
     done
-    if [[ "$filtered_hosts" == "" && $lookup_attempt_count -eq 0 ]]; then
+    if [[ ${#filtered_hosts} -le 0 && $lookup_attempt_count -eq 0 ]]; then
       lookup_attempt_count=$(($lookup_attempt_count+1))
       _dssh_update_inventories
     else
@@ -222,7 +242,7 @@ function _dssh_prompt_server() {
         elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
           _dssh_update_inventories
           info="$(_dssh_resolve_target "${tags[@]}")"
-          if [[ "$info" == "" ]]; then
+          if [[ ${#info} -le 0 ]]; then
             _dssh_pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
             break;
           fi
