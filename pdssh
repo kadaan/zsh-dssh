@@ -42,8 +42,14 @@ _parse_parameter() {
       list_hosts=true
     ;;
     *)
-      _dssh_parse_common_parameters "$1"
-      shift_count=$?
+      if [[ "$1" =~ ^-[bNd]+$ ]]; then
+        for char in $(echo "${1:1}" | fold -w1); do
+          _parse_parameter "-$char"
+        done
+      else
+        _dssh_parse_common_parameters "$1"
+        shift_count=$?
+      fi
     ;;
   esac
   return $shift_count
