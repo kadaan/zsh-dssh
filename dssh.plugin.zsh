@@ -26,7 +26,7 @@ function _dssh_tag_usage() {
   echo "    Servers can be filtered and selected using tags."
   echo "    The tags filter the server lists by name, public and private FQDN,"
   echo "      public and private IP, instance id, service, region, availability zone,"
-  echo "      lifecycle, and whether the server is in an ASG."
+  echo "      lifecycle, and whether the server is in an ASG (autoscaling/instance)."
   echo "    Tags separated by spaces are intersected.  For instance 'imports dev' filters"
   echo "      the servers down to all those whose name or service contain 'imports' and"
   echo "      lifecycle is 'dev'."
