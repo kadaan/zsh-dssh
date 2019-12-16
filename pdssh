@@ -14,7 +14,7 @@ _usage() {
   echo
   echo "Locates and runs commands on multiple AWS servers via SSH."
   echo
-  echo "Usage: pdssh [pdsh options] [options] tag"
+  echo "Usage: pdssh [pdsh options] [options] tags [tags ...]"
   echo ""
   _dssh_tag_usage
   echo "PDSH OPTIONS:"
