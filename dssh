@@ -14,12 +14,22 @@ _usage() {
   echo
   echo "Locates and connects to AWS servers via SSH."
   echo
-  echo "Usage: dssh [ssh options] [options] tag"
+  echo "Usage: dssh [ssh options] [options] tags [tags ...]"
+  echo ""
+  _dssh_tag_usage
+  echo "SSH OPTIONS:"
+  echo "    Flags:   -4 | -6 | -A | -a | -C | -f | -G | -g | -K | -k | -M"
+  echo "             -N | -n | -q | -s | -T | -t | -V | -X | -x | -Y | -y"
+  echo "    Options: -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -L"
+  echo "             -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w"
+  echo ""
+  echo "OPTIONS:"
   echo "    -r, --refresh         refresh the cached host information"
   echo "    --command=COMMAND     run the specified command and exit"
   echo "    -v                    verbose logging, multiple -v options increase the verbosity"
   echo "    -h, --help            display this help message"
 }
+
 _parse_parameter() {
   local shift_count=1
   case "$1" in

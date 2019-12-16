@@ -15,6 +15,13 @@ _usage() {
   echo "Locates and runs commands on multiple AWS servers via SSH."
   echo
   echo "Usage: pdssh [pdsh options] [options] tag"
+  echo ""
+  _dssh_tag_usage
+  echo "PDSH OPTIONS:"
+  echo "    Flags:   -b | -N | -d"
+  echo "    Options: -l | -t | -u | -f"
+  echo ""
+  echo "OPTIONS:"
   echo "    -r, --refresh         refresh the cached host information"
   echo "    --list-hosts          lists the targeted hosts and exit"
   echo "    --command=COMMAND     run the specified command and exit"

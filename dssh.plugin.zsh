@@ -21,6 +21,22 @@ function _dssh_lock() { dotlockfile -l -p $_dssh_aws_hostfile.lock; }
 function _dssh_unlock() { dotlockfile -u -p $_dssh_aws_hostfile.lock; }
 function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
+function _dssh_tag_usage() {
+  echo "TAGS:"
+  echo "    Servers can be filtered and selected using tags."
+  echo "    The tags filter the server lists by name, public and private FQDN,"
+  echo "      public and private IP, instance id, service, region, availability zone,"
+  echo "      lifecycle, and whether the server is in an ASG."
+  echo "    Tags separated by spaces are intersected.  For instance 'imports dev' filters"
+  echo "      the servers down to all those whose name or service contain 'imports' and"
+  echo "      lifecycle is 'dev'."
+  echo "    Tags separated by commas are unioned.  For instance 'imports,one' filters"
+  echo "      the servers down to all those whose name or service contain either 'imports'"
+  echo "      or 'one'."
+  echo "    Tags can be negated by prefixing the tag with '~'."
+  echo "    Union, intersection, and negation can all be used together."
+  echo ""
+}
 function _dssh_install_dependencies() {
   if [[ "$dependencies_installed" == false ]]; then
     which -a pdsh &>/dev/null || {
