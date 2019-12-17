@@ -33,7 +33,7 @@ function _dssh_tag_usage() {
   echo "    Tags separated by commas are unioned.  For instance 'imports,one' filters"
   echo "      the servers down to all those whose name or service contain either 'imports'"
   echo "      or 'one'."
-  echo "    Tags can be negated by prefixing the tag with '~'."
+  echo "    Tags can be negated by prefixing the tag with '%'."
   echo "    Union, intersection, and negation can all be used together."
   echo ""
 }
@@ -333,3 +333,4 @@ typeset -g ZSH_DSSH_DIR=${0:h}
 
 autoload -Uz dssh
 autoload -Uz pdssh
+autoload -Uz dwhois
