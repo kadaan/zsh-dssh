@@ -48,6 +48,11 @@ _parse_parameter() {
     --list-hosts)
       list_hosts=true
     ;;
+    -c=* | --command=*)
+      command_string="${1#*=}"
+    ;;
+    -v | -vv | -vvv | -vvvv)
+    ;;
     *)
       if [[ "$1" =~ ^-[bNd]+$ ]]; then
         for char in $(echo "${1:1}" | fold -w1); do

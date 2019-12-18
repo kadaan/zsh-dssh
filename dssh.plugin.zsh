@@ -304,14 +304,6 @@ function _dssh_parse_common_parameters() {
     -r | --refresh)
       refresh_enabled=true
     ;;
-    -v | -vv | -vvv | -vvvv)
-    ;;
-    -c=* | --command=*)
-      command_string="${1#*=}"
-    ;;
-    -v | -vv | -vvv | -vvvv)
-      _dssh_add_ssh_option "-$(printf 'v%.0s' {1..$verbose_level})"
-    ;;
     *)
       if [[ "$1" != "" ]]; then
         tags+=( "$1" )

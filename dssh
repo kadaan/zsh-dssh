@@ -43,6 +43,12 @@ _parse_parameter() {
     -B\ * | -b\ * | -c\ * | -D\ * | -E\ * | -e\ * | -F\ * | -I\ * | -i\ * | -J\ * | -L\ * | -l\ * | -m\ * | -O\ * | -o\ * | -p\ * | -Q\ * | -R\ * | -S\ * | -W\ * | -w\ *)
       _dssh_add_ssh_option "$1"
     ;;
+    -c=* | --command=*)
+      command_string="${1#*=}"
+    ;;
+    -v | -vv | -vvv | -vvvv)
+      _dssh_add_ssh_option "-$(printf 'v%.0s' {1..$verbose_level})"
+    ;;
     *)
       if [[ "$1" =~ ^-[46AaCfGgKkMNnqsTtVXxYy]+$ ]]; then
         for char in $(echo "${1:1}" | fold -w1); do
