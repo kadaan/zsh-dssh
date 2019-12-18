@@ -1,0 +1,13 @@
+#compdef dwhois
+
+setopt localoptions warncreateglobal typesetsilent
+
+local curcontext="$curcontext" state state_descr line ret=1
+local -a expl
+
+_arguments -C \
+    '-r' \
+    '--refresh' \
+    '-v' \
+    '-h' \
+    '--help' && ret=0
