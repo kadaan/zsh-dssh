@@ -67,15 +67,12 @@ _parse_parameter() {
   return $shift_count
 }
 _install_dependencies() {
-  if [[ "$dependencies_installed" == false ]]; then
-    which -a pdsh &>/dev/null || {
-      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
-    }
-    which -a unbuffer &>/dev/null || {
-      brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
-    }
-    dependencies_installed=true
-  fi
+  which -a pdsh &>/dev/null || {
+    brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
+  }
+  which -a unbuffer &>/dev/null || {
+    brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
+  }
 }
 
 _dssh_prepare_dssh_locking
