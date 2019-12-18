@@ -1,4 +1,4 @@
-#compdef dwhois
+#compdef dssh
 
 setopt localoptions warncreateglobal typesetsilent
 
@@ -7,5 +7,6 @@ local -a expl
 
 _arguments -C \
     {-r,--refresh}'[refresh the cached host information]' \
+    '--command[run the specified command and exit]' \
     {-v,-vv,-vvv,-vvvv}'-v[verbose logging, multiple -v options increase the verbosity]' \
     {-h,--help}'-h[display the help message]'
