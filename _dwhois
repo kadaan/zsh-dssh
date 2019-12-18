@@ -6,6 +6,11 @@ local curcontext="$curcontext" state state_descr line ret=1
 local -a expl
 
 _arguments -C \
-    {-r,--refresh}'[refresh the cached host information]' \
-    {-v,-vv,-vvv,-vvvv}'-v[verbose logging, multiple -v options increase the verbosity]' \
-    {-h,--help}'-h[display the help message]'
+    '-r[refresh the cached host information]' \
+    '--refresh[refresh the cached host information]' \
+    '-v[verbose logging, multiple -v options increase the verbosity]' \
+    '-vv[verbose logging, multiple -v options increase the verbosity]' \
+    '-vvv[verbose logging, multiple -v options increase the verbosity]' \
+    '-vvvv[verbose logging, multiple -v options increase the verbosity]' \
+    '-h[display the help message]' \
+    '--help[display the help message]'
