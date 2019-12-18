@@ -24,9 +24,9 @@ _usage() {
   echo "             -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w"
   echo ""
   echo "OPTIONS:"
-  echo "    -r, --refresh         refresh the cached host information"
   echo "    --command=COMMAND     run the specified command and exit"
-  echo "    -v                    verbose logging, multiple -v options increase the verbosity"
+  echo "    -r, --refresh         refresh the cached host information"
+  echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
   echo "    -h, --help            display this help message"
 }
 

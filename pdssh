@@ -22,11 +22,11 @@ _usage() {
   echo "    Options: -l | -t | -u | -f"
   echo ""
   echo "OPTIONS:"
-  echo "    -r, --refresh         refresh the cached host information"
-  echo "    --list-hosts          lists the targeted hosts and exit"
   echo "    --command=COMMAND     run the specified command and exit"
+  echo "    --list-hosts          lists the targeted hosts and exit"
   echo "    --sort                sort the results by server"
-  echo "    -v                    verbose logging, multiple -v options increase the verbosity"
+  echo "    -r, --refresh         refresh the cached host information"
+  echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
   echo "    -h, --help            display this help message"
 }
 _parse_parameter() {

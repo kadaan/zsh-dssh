@@ -1,4 +1,4 @@
-#compdef dwhois
+#compdef pdssh
 
 setopt localoptions warncreateglobal typesetsilent
 
@@ -6,6 +6,9 @@ local curcontext="$curcontext" state state_descr line ret=1
 local -a expl
 
 _arguments -C \
+    '--command=-[run the specified command and exit]' \
+    '--list-hosts[lists the targeted hosts and exit]' \
+    '--sort[sort the results by server]' \
     '--refresh[refresh the cached host information]' \
     '-r[refresh the cached host information]' \
     '-vvvv[verbose logging, multiple -v options increase the verbosity]' \
