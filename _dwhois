@@ -7,7 +7,7 @@ local -a expl
 
 _arguments -C \
     '-r[refresh the cached host information]' \
-    '--refresh' \
-    '-v' \
-    '-h' \
-    '--help' && ret=0
+    '--refresh[refresh the cached host information]' \
+    '-v[verbose logging, multiple -v options increase the verbosity]' \
+    '-h[display the help message]' \
+    '--help[display the help message]'
