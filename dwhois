@@ -31,7 +31,7 @@ if [[ $# -eq 0 ]]; then
   return $_dssh_e_noargs
 fi
 
-local dependencies_installed=false
+local python_installed=false
 local refresh_enabled=false
 local verbose_level=0
 local ssh_options=()

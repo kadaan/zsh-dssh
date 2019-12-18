@@ -66,6 +66,17 @@ _parse_parameter() {
   esac
   return $shift_count
 }
+_install_dependencies() {
+  if [[ "$dependencies_installed" == false ]]; then
+    which -a pdsh &>/dev/null || {
+      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
+    }
+    which -a unbuffer &>/dev/null || {
+      brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
+    }
+    dependencies_installed=true
+  fi
+}
 
 _dssh_prepare_dssh_locking
 
@@ -75,7 +86,7 @@ if [[ $# -eq 0 ]]; then
   return $_dssh_e_noargs
 fi
 
-local dependencies_installed=false
+local python_installed=false
 local refresh_enabled=false
 local verbose_level=0
 local ssh_options=()
@@ -182,7 +193,7 @@ ssh_command+=( "-w" "$addr" )
 if [[ "$command_string" != "" ]]; then
   ssh_command+=( "${command_string}" )
 fi
-_dssh_install_dependencies
+_install_dependencies
 _dssh_pverbose "$connection_message"
 local awk_map="my \$hosts_file;"
 for f in $HOME/.aws-hosts.*; do

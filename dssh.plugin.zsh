@@ -37,14 +37,8 @@ function _dssh_tag_usage() {
   echo "    Union, intersection, and negation can all be used together."
   echo ""
 }
-function _dssh_install_dependencies() {
-  if [[ "$dependencies_installed" == false ]]; then
-    which -a pdsh &>/dev/null || {
-      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
-    }
-    which -a unbuffer &>/dev/null || {
-      brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
-    }
+function _dssh_install_python() {
+  if [[ "$python_installed" == false ]]; then
     pyenv sh-shell 2.7.13 &>/dev/null || {
       brew --version &>/dev/null || {
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
@@ -79,7 +73,7 @@ function _dssh_install_dependencies() {
         echo "$actual_checksum" > $checksum_filename
       fi
     )
-    dependencies_installed=true
+    python_installed=true
   fi
 }
 function _dssh_activate_python() {
@@ -160,7 +154,7 @@ function _dssh_update_inventories() {
   if [[ "$WAS_UPDATED" == "false" ]]; then
     _dssh_lock
     echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
-    _dssh_install_dependencies
+    _dssh_install_python
     _dssh_lsenv | while read x; do
       _dssh_update_inventory $x &
     done
