@@ -6,7 +6,7 @@ local curcontext="$curcontext" state state_descr line ret=1
 local -a expl
 
 _arguments -C \
-    '-r' \
+    '-r[refresh the cached host information]' \
     '--refresh' \
     '-v' \
     '-h' \
