@@ -18,9 +18,13 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
+  _dssh_common_usage
   echo "    -r, --refresh         refresh the cached host information"
   echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
   echo "    -h, --help            display this help message"
+}
+_parse_parameter() {
+  _dssh_parse_common_parameters "$1"
 }
 
 _dssh_prepare_dssh_locking
@@ -37,54 +41,7 @@ local verbose_level=0
 local ssh_options=()
 local tags=()
 local command_string=""
-for var in "$@"; do
-  case "$var" in
-    -h | --help)
-      _usage
-      return $_dssh_e_noerror
-    ;;
-    -v | -vv | -vvv | -vvvv)
-      local verbose_elements=${var##-}
-      verbose_level=${#verbose_elements}
-      if [[ $verbose_level -ge 4 ]]; then
-        if [[ "$ZSH_VERSION" != "" ]]; then
-          local start_time="${${EPOCHREALTIME//.}:0:-6}"
-          PS4="+ [\$(( \${\${EPOCHREALTIME//.}:0:-6} - $start_time ))] [%N:%i] "
-        elif [[ "${BASH_VERSINFO[0]}" == "5" ]]; then
-          local start_time="$(( ${EPOCHREALTIME//.} / 1000 ))"
-          PS4="+ [\$(( (\${EPOCHREALTIME//.} / 1000) - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
-        elif command -v gdate > /dev/null; then
-          local start_time="$(gdate "+%s%3N")"
-          PS4="+ [\$(( \$(gdate "+%s%3N") - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
-        else
-          local start_time="$(date "+%s")"
-          PS4="+ [\$(( \$(date "+%s") - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
-        fi
-        set -x
-      fi
-    ;;
-  esac
-done
-
-local dwhois_config_file="${DSSH_CONFIG_FILE:-$HOME/.dwhoisrc}"
-if [[ -f "$dwhois_config_file" ]]; then
-  while IFS="" read -r var || [ -n "$var" ]; do
-    _dssh_parse_common_parameters "$var"
-  done < $dwhois_config_file
-fi
-
-while [[ $# -gt 0 ]]; do
-  local shift_count=1
-  _dssh_parse_common_parameters $@
-  shift_count="$?"
-  shift $shift_count
-done
-
-if [[ "$refresh_enabled" = true ]]; then
-  _dssh_update_inventories
-fi
-
-if [[ ${#tags[@]} -eq 0 ]]; then
+if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
   return $_dssh_e_noerror
 fi
 

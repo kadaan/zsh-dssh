@@ -1,6 +1,7 @@
 _dssh_aws_hostfile=$HOME/.aws-hosts
 _dssh_e_noerror=0
 _dssh_e_noargs=103
+_dssh_e_noserver=104
 _dssh_color_prefix='\033[38;5;'
 _dssh_color_suffix='m'
 _dssh_gray="${_dssh_color_prefix}249${_dssh_color_suffix}"
@@ -21,6 +22,11 @@ function _dssh_lock() { dotlockfile -l -p $_dssh_aws_hostfile.lock; }
 function _dssh_unlock() { dotlockfile -u -p $_dssh_aws_hostfile.lock; }
 function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
+function _dssh_common_usage() {
+  echo "    -r, --refresh         refresh the cached host information"
+  echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
+  echo "    -h, --help            display this help message"
+}
 function _dssh_tag_usage() {
   echo "TAGS:"
   echo "    Servers can be filtered and selected using tags."
@@ -106,6 +112,9 @@ function _dssh_update_inventory() {
           return
       fi
       local i=0
+      if [[ "$verbose_level" -gt 2 ]]; then
+        _dssh_pverbose "Updating $ENV_NAME:l..."
+      fi
       _dssh_refresh_inventory
       local result=$?
       while [ $result -ne 0 ]; do
@@ -113,10 +122,19 @@ function _dssh_update_inventory() {
         if [ "$i" -gt 5 ]; then
           break;
         fi
-
+        if [[ "$verbose_level" -gt 2 ]]; then
+          _dssh_pverbose "Updating $ENV_NAME:l failed.  Retrying..."
+        fi
         _dssh_refresh_inventory
         result=$?
       done
+      if [[ "$verbose_level" -gt 2 ]]; then
+        local update_status="complete"
+        if [[ "$result" -ne 0 ]]; then
+          update_status="failed"
+        fi
+        _dssh_pverbose "Updating $ENV_NAME:l $update_status"
+      fi
     fi
   )
 }
@@ -154,6 +172,9 @@ function _dssh_update_inventories() {
   if [[ "$WAS_UPDATED" == "false" ]]; then
     _dssh_lock
     echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
+    if [[ "$verbose_level" -gt 2 ]]; then
+      echo "" 1>&2
+    fi
     _dssh_install_python
     _dssh_lsenv | while read x; do
       _dssh_update_inventory $x &
@@ -305,6 +326,79 @@ function _dssh_parse_common_parameters() {
     ;;
   esac
   return $shift_count
+}
+function _dssh_parse_priority_parameters() {
+   for var in "$@"; do
+    case "$var" in
+      -h | --help)
+        _usage
+        return 1
+      ;;
+      -v | -vv | -vvv | -vvvv)
+        local verbose_elements=${var##-}
+        verbose_level=${#verbose_elements}
+        if [[ $verbose_level -ge 4 ]]; then
+          if [[ "$ZSH_VERSION" != "" ]]; then
+            local start_time="${${EPOCHREALTIME//.}:0:-6}"
+            PS4="+ [\$(( \${\${EPOCHREALTIME//.}:0:-6} - $start_time ))] [%N:%i] "
+          elif [[ "${BASH_VERSINFO[0]}" == "5" ]]; then
+            local start_time="$(( ${EPOCHREALTIME//.} / 1000 ))"
+            PS4="+ [\$(( (\${EPOCHREALTIME//.} / 1000) - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
+          elif command -v gdate > /dev/null; then
+            local start_time="$(gdate "+%s%3N")"
+            PS4="+ [\$(( \$(gdate "+%s%3N") - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
+          else
+            local start_time="$(date "+%s")"
+            PS4="+ [\$(( \$(date "+%s") - $start_time ))] [\${FUNCNAME[0]}:\${LINENO}] "
+          fi
+          set -x
+          trap 'setopt xtrace' EXIT
+        fi
+      ;;
+    esac
+  done
+  return 0
+}
+function _dssh_parse_default_parameters() {
+  if [[ -n $DEFAULT_PARAMETERS ]]; then
+    for var in "${DEFAULT_PARAMETERS[@]}"; do
+      _parse_parameter "$var"
+    done
+  fi
+}
+function _dssh_parse_file_parameters() {
+  local dssh_config_file="${DSSH_CONFIG_FILE:-$HOME/$1}"
+  if [[ -f "$dssh_config_file" ]]; then
+    while IFS="" read -r var || [ -n "$var" ]; do
+      _parse_parameter "$var"
+    done < $dssh_config_file
+  fi
+}
+function _dssh_parse_commandline_parameters() {
+  while [[ $# -gt 0 ]]; do
+    local shift_count=1
+    _parse_parameter $@
+    shift_count="$?"
+    shift $shift_count
+  done
+}
+function _dssh_parse_parameters() {
+  local filename="$1"
+  shift 1
+  if ! _dssh_parse_priority_parameters "$@"; then
+    return 1
+  fi
+  _dssh_parse_default_parameters
+  _dssh_parse_file_parameters "$filename"
+  _dssh_parse_commandline_parameters "$@"
+
+  if [[ "$refresh_enabled" = true ]]; then
+    _dssh_update_inventories
+  fi
+
+  if [[ ${#tags[@]} -eq 0 ]]; then
+    return $_dssh_e_noerror
+  fi
 }
 
 0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
