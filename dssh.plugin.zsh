@@ -388,6 +388,7 @@ function _dssh_parse_parameters() {
   if ! _dssh_parse_priority_parameters "$@"; then
     return 1
   fi
+  [[ ${-/x} != $- ]] && trap 'setopt xtrace' EXIT
   _dssh_parse_default_parameters
   _dssh_parse_file_parameters "$filename"
   _dssh_parse_commandline_parameters "$@"
