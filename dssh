@@ -9,6 +9,7 @@ set -o pipefail
 
 local WAS_UPDATED=false
 local DEFAULT_PARAMETERS=( "-o ConnectTimeout=10" )
+local PUBLIC_DNS_NAME_PATTERN="ec2-.+"
 
 _usage() {
   echo
@@ -117,7 +118,7 @@ else
     addr=`echo $info | awk -F, '{print $2}'`
     local name=`echo $info | awk -F, '{print $1}'`
     desc=" ($name) [$(echo $info | awk -F, '{print $3}')]"
-    if ! nc -G3 -z $addr 22 &>/dev/null; then
+    if [[ "$addr" =~ $PUBLIC_DNS_NAME_PATTERN ]] && ! nc -G3 -z $addr 22 &>/dev/null; then
       if [[ "$WAS_UPDATED" == "false" ]]; then
         _dssh_update_inventories
         info="$(_dssh_resolve_target "$name")"
