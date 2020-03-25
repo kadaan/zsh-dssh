@@ -161,7 +161,7 @@ use warnings;
 local \$, = ' ';
 local \$\ = "\n";
 my %host_map;
-my \$fqdn_regex = qr/(ec2-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.amazonaws\\.com)?)/p;
+my \$fqdn_regex = qr/(\\d+\\.\\d+\\.\\d+\\.\\d+)|(ec2-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.amazonaws\\.com)?)/p;
 $awk_map
 while (<>) {
   chomp;
