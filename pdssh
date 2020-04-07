@@ -8,7 +8,8 @@ set +m
 set -o pipefail
 
 local WAS_UPDATED=false
-local -a sort_command=("cat" "-u")
+local name_enabled=true
+local -a sort_command=()
 local list_hosts=false
 _usage() {
   echo
@@ -30,7 +31,11 @@ _usage() {
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    -b | -N | -d)
+    -N)
+      _dssh_add_ssh_option "$1"
+      name_enabled=false
+    ;;
+    -b | -d)
       _dssh_add_ssh_option "$1"
     ;;
     -l | -t | -u | -f)
@@ -41,7 +46,7 @@ _parse_parameter() {
       _dssh_add_ssh_option "$1"
     ;;
     --sort)
-      sort_command=("sort" "-s" "-t" ":" "-k" "1")
+      sort_command=("sort" "-s" "-t" ":")
     ;;
     --list-hosts)
       list_hosts=true
@@ -68,9 +73,6 @@ _install_dependencies() {
   which -a pdsh &>/dev/null || {
     brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
   }
-  which -a unbuffer &>/dev/null || {
-    brew install expect &>/dev/null || _dssh_pfatal "failed to install expect: $?"
-  }
 }
 
 _dssh_prepare_dssh_locking
@@ -89,6 +91,9 @@ local tags=()
 local command_string=""
 if ! _dssh_parse_parameters ".pdsshrc" "$@"; then
   return $_dssh_e_noerror
+fi
+if [[ "${#sort_command}" -gt 0 && "$name_enabled" == "true" ]]; then
+  sort_command+=("-k" "1,1")
 fi
 
 local addr=""
@@ -187,5 +192,9 @@ while (<>) {
 }
 EOF
 )
-env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | unbuffer -p perl -e "$enrich_script" | ${sort_command[@]}
+if [[ "${#sort_command}" -gt 0 ]]; then
+  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
+else
+  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script"
+fi
 return $?

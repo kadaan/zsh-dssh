@@ -19,9 +19,6 @@ _usage() {
   _dssh_tag_usage
   echo "OPTIONS:"
   _dssh_common_usage
-  echo "    -r, --refresh         refresh the cached host information"
-  echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
-  echo "    -h, --help            display this help message"
 }
 _parse_parameter() {
   _dssh_parse_common_parameters "$1"

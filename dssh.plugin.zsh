@@ -23,9 +23,9 @@ function _dssh_unlock() { dotlockfile -u -p $_dssh_aws_hostfile.lock; }
 function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
 function _dssh_common_usage() {
-  echo "    -r, --refresh         refresh the cached host information"
-  echo "    -v, -vv, -vvv, -vvvv  verbose logging, multiple -v options increase the verbosity"
-  echo "    -h, --help            display this help message"
+  echo "    -r, --refresh, --no_refresh     trigger or prevent refresh the cached host information"
+  echo "    -v, -vv, -vvv, -vvvv            verbose logging, multiple -v options increase the verbosity"
+  echo "    -h, --help                      display this help message"
 }
 function _dssh_tag_usage() {
   echo "TAGS:"
@@ -319,6 +319,9 @@ function _dssh_parse_common_parameters() {
   case "$1" in
     -r | --refresh)
       refresh_enabled=true
+    ;;
+    --no_refresh)
+      refresh_enabled=false
     ;;
     *)
       if [[ "$1" != "" ]]; then
