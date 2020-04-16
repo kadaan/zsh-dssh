@@ -25,7 +25,7 @@ _usage() {
   echo "             -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w"
   echo ""
   echo "OPTIONS:"
-  echo "    --command=COMMAND     run the specified command and exit"
+  echo "    --command=COMMAND               run the specified command and exit"
   _dssh_common_usage
 }
 

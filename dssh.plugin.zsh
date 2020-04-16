@@ -206,7 +206,7 @@ function _dssh_print_menu() {
   echo -e "  ${_dssh_bold_white}Q${_dssh_nc}: Quit"
   echo "" 1>&2
 }
-function _dssh_resolve_target() {
+function _dssh_resolve_target_full() {
   local targets=("$@")
   local lookup_attempt_count=0
   local filtered_hosts=""
@@ -250,12 +250,20 @@ function _dssh_resolve_target() {
       break
     fi
   done
-  echo "$filtered_hosts" | cut -d "," -f 1,2,9,11
+  echo "$filtered_hosts"
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
     return 0
   fi
+}
+function _dssh_resolve_target() {
+  local result
+  local filtered_hosts
+  filtered_hosts="$(_dssh_resolve_target_full "$@")"
+  result="$?"
+  echo "$filtered_hosts" | cut -d "," -f 1,2,9,11
+  return $result
 }
 function _dssh_prompt_server() {
   local count=$(echo "$info" | wc -l)

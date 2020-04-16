@@ -23,9 +23,9 @@ _usage() {
   echo "    Options: -l | -t | -u | -f"
   echo ""
   echo "OPTIONS:"
-  echo "    --command=COMMAND     run the specified command and exit"
-  echo "    --list-hosts          lists the targeted hosts and exit"
-  echo "    --sort                sort the results by server"
+  echo "    --command=COMMAND               run the specified command and exit"
+  echo "    --list-hosts                    lists the targeted hosts and exit"
+  echo "    --sort                          sort the results by server"
   _dssh_common_usage
 }
 _parse_parameter() {

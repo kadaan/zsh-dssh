@@ -9,7 +9,7 @@ set -o pipefail
 
 local WAS_UPDATED=false
 local -a sort_command=("cat" "-u")
-local list_hosts=false
+local full_details=false
 _usage() {
   echo
   echo "Locates servers in the inventory."
@@ -18,10 +18,28 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
+  echo "    --full                          print full details about the servers"
   _dssh_common_usage
 }
 _parse_parameter() {
-  _dssh_parse_common_parameters "$1"
+  local shift_count=1
+  case "$1" in
+    --full)
+      full_details=true
+    ;;
+    *)
+      _dssh_parse_common_parameters "$1"
+      shift_count=$?
+    ;;
+  esac
+  return $shift_count
+}
+function _print_hosts_full() {
+  local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
+  max_host_length="$((max_host_length+1))"
+  local public_icon=$'\uf0c2'
+  local private_icon=$'\uf023'
+  echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)  [%s]\n\", \"$_dssh_color_prefix\", \$11, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$9, \$7}{if (length(\$6) > 0) printf \"       $public_icon: %s (%s)\n\", \$2, \$6}{printf \"       $private_icon: %s (%s)\n%s\n\", \$3, \$4, \"$_dssh_nc\"}"
 }
 
 _dssh_prepare_dssh_locking
@@ -43,13 +61,13 @@ if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
 fi
 
 local info=""
-info="$(_dssh_resolve_target "${tags[@]}")"
+info="$(_dssh_resolve_target_full "${tags[@]}")"
 if [[ "$?" -eq 1 ]]; then
   WAS_UPDATED=true
 fi
 if [ -z "$info" ]; then
   _dssh_update_inventories
-  info="$(_dssh_resolve_target "${tags[@]}")"
+  info="$(_dssh_resolve_target_full "${tags[@]}")"
   if [[ "$?" -eq 1 ]]; then
     WAS_UPDATED=true
   fi
@@ -58,7 +76,10 @@ fi
 if [ -z "$info" ]; then
   _dssh_pwarn "Host '${tags[*]}' not found in inventory."
   return $_dssh_e_noerror
+elif [[ "$full_details" == "false" ]]; then
+  _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,11)"
+  return $_dssh_e_noerror
 else
-  _dssh_print_menu_hosts $info
+  _print_hosts_full $info
   return $_dssh_e_noerror
 fi
