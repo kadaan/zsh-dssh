@@ -9,7 +9,7 @@ set -o pipefail
 
 local WAS_UPDATED=false
 local -a sort_command=("cat" "-u")
-local full_details=false
+local short_details=false
 _usage() {
   echo
   echo "Locates servers in the inventory."
@@ -18,14 +18,14 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
-  echo "    --full                          print full details about the servers"
+  echo "    --short                          print short details about the servers"
   _dssh_common_usage
 }
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    --full)
-      full_details=true
+    --short)
+      short_details=true
     ;;
     *)
       _dssh_parse_common_parameters "$1"
@@ -51,7 +51,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 local python_installed=false
-local refresh_enabled=false
+local refresh_enabled=true
 local verbose_level=0
 local ssh_options=()
 local tags=()
@@ -76,7 +76,7 @@ fi
 if [ -z "$info" ]; then
   _dssh_pwarn "Host '${tags[*]}' not found in inventory."
   return $_dssh_e_noerror
-elif [[ "$full_details" == "false" ]]; then
+elif [[ "$short_details" == "true" ]]; then
   _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,11)"
   return $_dssh_e_noerror
 else

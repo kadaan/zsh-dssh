@@ -84,7 +84,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 local python_installed=false
-local refresh_enabled=false
+local refresh_enabled=true
 local verbose_level=0
 local ssh_options=()
 local tags=()
