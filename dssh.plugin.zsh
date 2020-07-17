@@ -295,6 +295,7 @@ function _dssh_prompt_server() {
       done
       (( refreshMenu > 0 ))
     do
+      count=$(echo "$info" | wc -l)
       continue
     done
   fi
