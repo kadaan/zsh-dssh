@@ -154,7 +154,10 @@ if [[ "$command_string" != "" ]]; then
   connection_message="Running command \`$command_string\` on"
 fi
 if [[ "${#ssh_options[@]}" -gt 0 ]]; then
-  ssh_command+=( "${ssh_options[@]}" )
+  read -rA opts <<<"${ssh_options[@]}"
+  for opt in "${opts[@]}"; do
+    ssh_command+=( "$opt" )
+  done
 fi
 ssh_command+=( "${addr}" )
 if [[ "$command_string" != "" ]]; then

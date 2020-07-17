@@ -141,7 +141,10 @@ fi
 local connection_message="Running command against $server_message..."
 local -a ssh_command=( "pdsh" "-S" "-R" "ssh")
 if [[ "${#ssh_options[@]}" -gt 0 ]]; then
-  ssh_command+=( "${ssh_options[@]}" )
+  read -rA opts <<<"${ssh_options[@]}"
+  for opt in "${opts[@]}"; do
+    ssh_command+=( "$opt" )
+  done
 fi
 ssh_command+=( "-w" "$addr" )
 if [[ "$command_string" != "" ]]; then
