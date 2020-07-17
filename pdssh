@@ -26,6 +26,7 @@ _usage() {
   echo "    --command=COMMAND               run the specified command and exit"
   echo "    --list-hosts                    lists the targeted hosts and exit"
   echo "    --sort                          sort the results by server"
+  echo "    --identity-file=FILE            file from which the identity (private key) for public key authentication is read"
   _dssh_common_usage
 }
 _parse_parameter() {
@@ -50,6 +51,9 @@ _parse_parameter() {
     ;;
     --list-hosts)
       list_hosts=true
+    ;;
+    --identity-file=*)
+      identity_file="${1#*=}"
     ;;
     -c=* | --command=*)
       command_string="${1#*=}"
@@ -89,6 +93,7 @@ local verbose_level=0
 local ssh_options=()
 local tags=()
 local command_string=""
+local identity_file=""
 if ! _dssh_parse_parameters ".pdsshrc" "$@"; then
   return $_dssh_e_noerror
 fi
@@ -192,9 +197,13 @@ while (<>) {
 }
 EOF
 )
+local additional_ssh_args=""
+if [[ "${#identity_file}" -gt 0 ]]; then
+  additional_ssh_args=" -i $identity_file"
+fi
 if [[ "${#sort_command}" -gt 0 ]]; then
-  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
+  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
 else
-  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script"
+  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script"
 fi
 return $?
