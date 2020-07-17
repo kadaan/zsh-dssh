@@ -199,7 +199,7 @@ EOF
 )
 local additional_ssh_args=""
 if [[ "${#identity_file}" -gt 0 ]]; then
-  additional_ssh_args=" -i $identity_file"
+  additional_ssh_args=" -o IdentitiesOnly=yes -i $identity_file"
 fi
 if [[ "${#sort_command}" -gt 0 ]]; then
   env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
