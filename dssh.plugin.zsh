@@ -392,6 +392,9 @@ function _dssh_parse_commandline_parameters() {
     local shift_count=1
     _parse_parameter $@
     shift_count="$?"
+    if [[ "$shift_count" -gt $# ]]; then
+      shift_count=$#
+    fi
     shift $shift_count
   done
 }
