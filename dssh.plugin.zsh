@@ -417,6 +417,31 @@ function _dssh_parse_parameters() {
     return $_dssh_e_noerror
   fi
 }
+function _dssh_should_use_public_ip_address() {
+  local public_addr="$1"
+  local private_addr="$2"
+  local public_addr_thru_tun=1
+  local private_addr_thru_tun=1
+  route -n get "$public_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
+  public_addr_thru_tun="$?"
+  route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
+  private_addr_thru_tun="$?"
+  if [[ "$public_addr_thru_tun" -eq 0 ]]; then
+    if [[ "$private_addr_thru_tun" -eq 0 ]]; then
+      if nc -G3 -z $public_addr 22 &>/dev/null; then
+        return 0
+      else
+        return 1
+      fi
+    else
+      return 0
+    fi
+  elif [[ "$private_addr_thru_tun" -eq 0 ]]; then
+    return 1
+  else
+    return 2
+  fi
+}
 
 0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
 0=${${(M)0:#/*}:-$PWD/$0}

@@ -115,9 +115,11 @@ else
         return $result
       fi
     fi
-    addr=`echo $info | awk -F, '{print $2}'`
+    local public_addr=`echo $info | awk -F, '{print $2}'`
     local private_addr=`echo $info | awk -F, '{print $3}'`
-    if route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$'; then
+    if _dssh_should_use_public_ip_address "$public_addr" "$private_addr"; then
+      addr="$public_addr"
+    else
       addr="$private_addr"
     fi
     local name=`echo $info | awk -F, '{print $1}'`

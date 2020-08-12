@@ -89,11 +89,10 @@ if [ -z "$info" ]; then
 else
   case $format in
     IP)
-      local private_addr=$(echo "$info" | head -n1 | awk -F',' '{print $4}')
-      if route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$'; then
-        echo "$info"  | cut -d "," -f 4
-      else
+      if _dssh_should_use_public_ip_address "$(echo "$info" | head -n1  | cut -d "," -f 6)" "$(echo "$info" | head -n1  | cut -d "," -f 6)"; then
         echo "$info"  | cut -d "," -f 6
+      else
+        echo "$info"  | cut -d "," -f 4
       fi
       ;;
     SHORT)
