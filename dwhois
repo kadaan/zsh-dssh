@@ -3,13 +3,13 @@ if [[ $0 != dwhois || -n $ZSH_SCRIPT ]]; then
     0=${${(M)0##/*}:-$PWD/$0}
     typeset ZSH_DSSH_DIR=${0:h}
 fi
-
+set -x
 set +m
 set -o pipefail
 
 local WAS_UPDATED=false
 local -a sort_command=("cat" "-u")
-local short_details=false
+local format="FULL"
 _usage() {
   echo
   echo "Locates servers in the inventory."
@@ -18,14 +18,24 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
-  echo "    --short                          print short details about the servers"
+  echo "    --format=[IP|SHORT|FULL]        format of details tp print about the servers (default: FULL)"
   _dssh_common_usage
 }
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    --short)
-      short_details=true
+    -f=* | --format=*)
+      format="${1#*=}"
+      format="${format:u}"
+      case $format in
+        SHORT | IP | FULL)
+          ;;
+        *)
+          _dssh_perror "unsupported format [$format]"
+          _usage
+          return $_dssh_e_noargs
+          ;;
+        esac
     ;;
     *)
       _dssh_parse_common_parameters "$1"
@@ -76,10 +86,22 @@ fi
 if [ -z "$info" ]; then
   _dssh_pwarn "Host '${tags[*]}' not found in inventory."
   return $_dssh_e_noerror
-elif [[ "$short_details" == "true" ]]; then
-  _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,11)"
-  return $_dssh_e_noerror
 else
-  _print_hosts_full $info
+  case $format in
+    IP)
+      local private_addr=$(echo "$info" | head -n1 | awk -F',' '{print $4}')
+      if route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$'; then
+        echo "$info"  | cut -d "," -f 4
+      else
+        echo "$info"  | cut -d "," -f 6
+      fi
+      ;;
+    SHORT)
+      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,11)"
+      ;;
+    FULL)
+      _print_hosts_full $info
+      ;;
+  esac
   return $_dssh_e_noerror
 fi

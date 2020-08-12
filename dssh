@@ -116,8 +116,12 @@ else
       fi
     fi
     addr=`echo $info | awk -F, '{print $2}'`
+    local private_addr=`echo $info | awk -F, '{print $3}'`
+    if route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$'; then
+      addr="$private_addr"
+    fi
     local name=`echo $info | awk -F, '{print $1}'`
-    desc=" ($name) [$(echo $info | awk -F, '{print $3}')]"
+    desc=" ($name) [$(echo $info | awk -F, '{print $4}')]"
     if [[ "$addr" =~ $PUBLIC_DNS_NAME_PATTERN ]] && ! nc -G3 -z $addr 22 &>/dev/null; then
       if [[ "$WAS_UPDATED" == "false" ]]; then
         _dssh_update_inventories

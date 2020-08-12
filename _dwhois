@@ -6,6 +6,8 @@ local curcontext="$curcontext" state state_descr line ret=1
 local -a expl
 
 _arguments -C \
+    '--format[format of details tp print about the servers]' \
+    '-f[format of details tp print about the servers]' \
     '--refresh[refresh the cached host information]' \
     '-r[refresh the cached host information]' \
     '-vvvv[verbose logging, multiple -v options increase the verbosity]' \

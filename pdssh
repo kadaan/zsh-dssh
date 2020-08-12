@@ -123,7 +123,12 @@ else
     fi
   fi
   if [[ "$addr" == "" ]]; then
-    addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
+    local private_addr=$(echo "$info" | head -n1 | awk -F',' '{print $3}')
+    if route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$'; then
+      addr=$(echo "$info" | awk -F, '{printf("%s,",$3)}' | sed 's/,\s*$//')
+    else
+      addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
+    fi
   fi
 fi
 
