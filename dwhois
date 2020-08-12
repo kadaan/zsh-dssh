@@ -3,7 +3,7 @@ if [[ $0 != dwhois || -n $ZSH_SCRIPT ]]; then
     0=${${(M)0##/*}:-$PWD/$0}
     typeset ZSH_DSSH_DIR=${0:h}
 fi
-set -x
+
 set +m
 set -o pipefail
 
