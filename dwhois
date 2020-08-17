@@ -18,7 +18,7 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
-  echo "    --format=[IP|SHORT|FULL]        format of details tp print about the servers (default: FULL)"
+  echo "    --format=[IP|SHORT|FULL|RAW]    format of details tp print about the servers (default: FULL)"
   _dssh_common_usage
 }
 _parse_parameter() {
@@ -28,7 +28,7 @@ _parse_parameter() {
       format="${1#*=}"
       format="${format:u}"
       case $format in
-        SHORT | IP | FULL)
+        SHORT | IP | FULL | RAW)
           ;;
         *)
           _dssh_perror "unsupported format [$format]"
@@ -36,6 +36,8 @@ _parse_parameter() {
           return $_dssh_e_noargs
           ;;
         esac
+    ;;
+    -v | -vv | -vvv | -vvvv)
     ;;
     *)
       _dssh_parse_common_parameters "$1"
@@ -49,7 +51,7 @@ function _print_hosts_full() {
   max_host_length="$((max_host_length+1))"
   local public_icon=$'\uf0c2'
   local private_icon=$'\uf023'
-  echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)  [%s]\n\", \"$_dssh_color_prefix\", \$11, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$9, \$7}{if (length(\$6) > 0) printf \"       $public_icon: %s (%s)\n\", \$2, \$6}{printf \"       $private_icon: %s (%s)\n%s\n\", \$3, \$4, \"$_dssh_nc\"}"
+  echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)  [%s]\n\", \"$_dssh_color_prefix\", \$12, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$9, \$7}{if (length(\$6) > 0) printf \"       $public_icon: %s (%s)\n\", \$2, \$6}{printf \"       $private_icon: %s (%s)\n%s\n\", \$3, \$4, \"$_dssh_nc\"}"
 }
 
 _dssh_prepare_dssh_locking
@@ -96,10 +98,13 @@ else
       fi
       ;;
     SHORT)
-      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,11)"
+      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,12)"
       ;;
     FULL)
       _print_hosts_full $info
+      ;;
+    RAW)
+      echo "$info"
       ;;
   esac
   return $_dssh_e_noerror

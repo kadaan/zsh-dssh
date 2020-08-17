@@ -96,8 +96,22 @@ function _dssh_get_envname() {
 }
 function _dssh_refresh_inventory() {
   rm -rf "$_dssh_aws_hostfile.$filename"
-  AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+  if command -v aws-okta &>/dev/null; then
+    if [[ "$AWS_PROFILE" != "" ]]; then
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} aws-okta exec $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+      return $?
+    fi
+  fi
+  AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
   return $?
+}
+function _dssh_okta_authenticate() {
+  set -o allexport
+  source $1
+  set +o allexport
+  if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
+    aws-okta exec $AWS_PROFILE --disable-server -- echo -n "." 1>&2
+  fi
 }
 function _dssh_update_inventory() {
   (
@@ -172,7 +186,15 @@ function _dssh_update_inventories() {
   local force="${1:-false}"
   if [[ "$WAS_UPDATED" == "false" || "$force" == "true" ]]; then
     _dssh_lock
-    echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
+    if command -v aws-okta &>/dev/null; then
+      echo -n "${_dssh_gray}Updating inventories" 1>&2
+      _dssh_lsenv | while read x; do
+        _dssh_okta_authenticate $x
+      done
+      echo -n "${_dssh_nc}" 1>&2
+    else
+      echo -n "${_dssh_gray}Updating inventories...${_dssh_nc}" 1>&2
+    fi
     if [[ "$verbose_level" -gt 2 ]]; then
       echo "" 1>&2
     fi
@@ -262,7 +284,7 @@ function _dssh_resolve_target() {
   local filtered_hosts
   filtered_hosts="$(_dssh_resolve_target_full "$@")"
   result="$?"
-  echo "$filtered_hosts" | cut -d "," -f 1,2,4,9,11
+  echo "$filtered_hosts" | cut -d "," -f 1,2,4,9,12
   return $result
 }
 function _dssh_prompt_server() {
