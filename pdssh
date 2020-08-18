@@ -164,8 +164,8 @@ open(\$hosts_file, '$f') || die 'Cannot open file "$f".';
 while (<\$hosts_file>) {
   chomp;
   my @f = split(/,/, \$_, -1);
-  \$host_map{\$f[(2)-1]} = "${_dssh_color_prefix}" . \$f[(11)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
-  \$host_map{(split /\\./, \$f[(2)-1])[0]} = "${_dssh_color_prefix}" . \$f[(11)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
+  \$host_map{\$f[(2)-1]} = "${_dssh_color_prefix}" . \$f[(12)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
+  \$host_map{(split /\\./, \$f[(2)-1])[0]} = "${_dssh_color_prefix}" . \$f[(12)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
 }
 EOF
 )
