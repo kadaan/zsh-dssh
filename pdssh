@@ -164,8 +164,20 @@ open(\$hosts_file, '$f') || die 'Cannot open file "$f".';
 while (<\$hosts_file>) {
   chomp;
   my @f = split(/,/, \$_, -1);
-  \$host_map{\$f[(2)-1]} = "${_dssh_color_prefix}" . \$f[(12)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
-  \$host_map{(split /\\./, \$f[(2)-1])[0]} = "${_dssh_color_prefix}" . \$f[(12)-1] . '${_dssh_color_suffix}' . \$f[(1)-1] . "${_dssh_nc} ${_dssh_gray}(" . \$f[(9)-1] . ")${_dssh_nc}";
+  if (length(\$f[2]) > 0) {
+    \$host_map{\$f[2]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+    \$host_map{(split /\\./, \$f[2])[0]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+  }
+  if (length(\$f[3]) > 0) {
+    \$host_map{\$f[3]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+  }
+  if (length(\$f[4]) > 0) {
+    \$host_map{\$f[4]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+    \$host_map{(split /\\./, \$f[4])[0]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+  }
+  if (length(\$f[5]) > 0) {
+    \$host_map{\$f[5]} = "${_dssh_color_prefix}" . \$f[11] . '${_dssh_color_suffix}' . \$f[0] . "${_dssh_nc} ${_dssh_gray}(" . \$f[8] . ")${_dssh_nc}";
+  }
 }
 EOF
 )
@@ -178,7 +190,7 @@ use warnings;
 local \$, = ' ';
 local \$\ = "\n";
 my %host_map;
-my \$fqdn_regex = qr/(\\d+\\.\\d+\\.\\d+\\.\\d+)|(ec2-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.amazonaws\\.com)?)/p;
+my \$fqdn_regex = qr/(\\d+\\.\\d+\\.\\d+\\.\\d+)|(ec2-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.amazonaws\\.com)?)|(ip-\\d+-\\d+-\\d+-\\d+(?:\\..+?\\.ec2\\.internal)?)/p;
 $awk_map
 while (<>) {
   chomp;
