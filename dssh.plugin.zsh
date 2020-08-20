@@ -96,13 +96,17 @@ function _dssh_get_envname() {
 }
 function _dssh_refresh_inventory() {
   rm -rf "$_dssh_aws_hostfile.$filename"
+  local ec2_ini_path="$ANSIBLE_INVENTORY/ci.ini"
+  if [ -f "$ANSIBLE_INVENTORY/ec2_private.ini" ]; then
+    ec2_ini_path="$ANSIBLE_INVENTORY/ec2_private.ini"
+  fi
   if command -v aws-okta &>/dev/null; then
     if [[ "$AWS_PROFILE" != "" ]]; then
-      AWS_REGIONS=${ENV_AWS_REGIONS:?} aws-okta exec $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
       return $?
     fi
   fi
-  AWS_REGIONS=${ENV_AWS_REGIONS:?} python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+  AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
   return $?
 }
 function _dssh_okta_authenticate() {
