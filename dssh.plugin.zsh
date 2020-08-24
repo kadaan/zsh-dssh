@@ -27,7 +27,7 @@ function _dssh_init() {
     local aws_profile
     _dssh_lsenv | while read x; do
       if grep -q 'ENV_DISABLED=0' "$x"; then
-        aws_profile="$(grep 'AWS_PROFILE=' '$x' | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
+        aws_profile="$(grep 'AWS_PROFILE=' "$x" | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
         if [[ "$?" -eq 0 ]]; then
           break
         fi
