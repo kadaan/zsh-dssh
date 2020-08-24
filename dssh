@@ -80,6 +80,8 @@ if ! _dssh_parse_parameters ".dsshrc" "$@"; then
   return $_dssh_e_noerror
 fi
 
+_dssh_init
+
 local addr=""
 local desc=""
 if [[ ${#tags[@]} -eq 1 && "${tags[1]}" =~ $_dssh_public_fqdn_target ]]; then

@@ -22,6 +22,26 @@ function _dssh_lock() { dotlockfile -l -p $_dssh_aws_hostfile.lock; }
 function _dssh_unlock() { dotlockfile -u -p $_dssh_aws_hostfile.lock; }
 function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
+function _dssh_init() {
+  if command -v aws-okta &>/dev/null; then
+    local aws_profile
+    _dssh_lsenv | while read x; do
+      if grep -q 'ENV_DISABLED=0' "$x"; then
+        aws_profile="$(grep 'AWS_PROFILE=' /Users/jbaranick/.env/1_dev.sh | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
+        if [[ "$?" -eq 0 ]]; then
+          break
+        fi
+      fi
+    done
+    if [[ "$aws_profile" != "" ]]; then
+      aws-okta exec $aws_profile -- echo -n ""
+    fi
+  fi
+  if [[ "$refresh_enabled" = true ]]; then
+    _dssh_update_inventories
+  fi
+}
+
 function _dssh_common_usage() {
   echo "    -r, --refresh, --no_refresh     trigger or prevent refresh the cached host information"
   echo "    -v, -vv, -vvv, -vvvv            verbose logging, multiple -v options increase the verbosity"
@@ -434,10 +454,6 @@ function _dssh_parse_parameters() {
   _dssh_parse_default_parameters
   _dssh_parse_file_parameters "$filename"
   _dssh_parse_commandline_parameters "$@"
-
-  if [[ "$refresh_enabled" = true ]]; then
-    _dssh_update_inventories
-  fi
 
   if [[ ${#tags[@]} -eq 0 ]]; then
     return $_dssh_e_noerror

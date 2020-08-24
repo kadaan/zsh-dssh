@@ -72,6 +72,8 @@ if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
   return $_dssh_e_noerror
 fi
 
+_dssh_init
+
 local info=""
 info="$(_dssh_resolve_target_full "${tags[@]}")"
 if [[ "$?" -eq 1 ]]; then
