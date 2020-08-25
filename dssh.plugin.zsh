@@ -308,7 +308,7 @@ function _dssh_resolve_target() {
   local filtered_hosts
   filtered_hosts="$(_dssh_resolve_target_full "$@")"
   result="$?"
-  echo "$filtered_hosts" | cut -d "," -f 1,2,4,9,12
+  echo "$filtered_hosts" | cut -d "," -f 1,4,6,9,12
   return $result
 }
 function _dssh_prompt_server() {

@@ -100,7 +100,7 @@ else
       fi
       ;;
     SHORT)
-      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,2,9,12)"
+      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,4,6,9,12)"
       ;;
     FULL)
       _print_hosts_full $info
