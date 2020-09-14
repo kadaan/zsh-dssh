@@ -107,7 +107,7 @@ function _dssh_activate_python() {
   source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
 }
 function _dssh_lsenv() {
-    ls -1 $HOME/.env/*.sh
+    \ls -1 $HOME/.env/*.sh
 }
 function _dssh_get_envname() {
     local filename=$(basename "$1")
