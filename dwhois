@@ -18,7 +18,7 @@ _usage() {
   echo ""
   _dssh_tag_usage
   echo "OPTIONS:"
-  echo "    --format=[IP|SHORT|FULL|RAW]    format of details tp print about the servers (default: FULL)"
+  echo "    --format=[IP|INSTANCE_ID|SHORT|FULL|RAW]    format of details tp print about the servers (default: FULL)"
   _dssh_common_usage
 }
 _parse_parameter() {
@@ -28,7 +28,7 @@ _parse_parameter() {
       format="${1#*=}"
       format="${format:u}"
       case $format in
-        SHORT | IP | FULL | RAW)
+        SHORT | INSTANCE_ID | IP | FULL | RAW)
           ;;
         *)
           _dssh_perror "unsupported format [$format]"
@@ -98,6 +98,9 @@ else
       else
         echo "$info"  | cut -d "," -f 4
       fi
+      ;;
+    INSTANCE_ID)
+      echo "$info"  | cut -d "," -f 7
       ;;
     SHORT)
       _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,4,6,9,12)"
