@@ -96,7 +96,7 @@ function _dssh_install_python() {
         python -m ensurepip &>/dev/null || _dssh_pfatal "failed to ensure baseline pip is installed: $?"
         python -m pip install pip==$_dssh_required_pip_version &>/dev/null || _dssh_pfatal "failed to install pip: $?"
         python -m pip install $_dssh_required_python_packages[*] &>/dev/null || _dssh_pfatal "failed to install [boto,boto3,six,gevent]: $?"
-        echo "$actual_checksum" > $checksum_filename
+        echo "$actual_checksum" >! $checksum_filename
       fi
     )
     python_installed=true
@@ -261,7 +261,7 @@ function _dssh_resolve_target_full() {
       local filtered_hosts_partial=$(\cat $hostsfile)
       for target in "${targets[@]}"; do
         local filtered_hosts_target_partial=""
-        for target_part in $(echo $target | sed "s/,/ /g");do
+        for target_part in ${(@s/,/)target}; do
           local grep_command=( 'grep' '-h' )
           if [[ ${target_part:0:1} == "%" ]]; then
             grep_command+=( '-v' )
