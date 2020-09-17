@@ -117,8 +117,8 @@ else
         return $result
       fi
     fi
-    local public_addr=`echo $info | awk -F, '{print $2}'`
-    local private_addr=`echo $info | awk -F, '{print $3}'`
+    local public_addr=`echo $info | awk -F, '{print $3}'`
+    local private_addr=`echo $info | awk -F, '{print $2}'`
     if _dssh_should_use_public_ip_address "$public_addr" "$private_addr"; then
       addr="$public_addr"
     else

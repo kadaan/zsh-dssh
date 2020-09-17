@@ -464,10 +464,14 @@ function _dssh_should_use_public_ip_address() {
   local private_addr="$2"
   local public_addr_thru_tun=1
   local private_addr_thru_tun=1
-  route -n get "$public_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
-  public_addr_thru_tun="$?"
-  route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
-  private_addr_thru_tun="$?"
+  if [[ "${#public_addr}" -gt 0 ]]; then
+    route -n get "$public_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
+    public_addr_thru_tun="$?"
+  fi
+  if [[ "${#private_addr}" -gt 0 ]]; then
+    route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
+    private_addr_thru_tun="$?"
+  fi
   if [[ "$public_addr_thru_tun" -eq 0 ]]; then
     if [[ "$private_addr_thru_tun" -eq 0 ]]; then
       if nc -G3 -z $public_addr 22 &>/dev/null; then
