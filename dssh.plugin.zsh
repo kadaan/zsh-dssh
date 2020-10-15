@@ -1,4 +1,6 @@
-_dssh_aws_hostfile=$HOME/.aws-hosts
+_dssh_aws_hostfile_dir=$HOME
+_dssh_aws_hostfile_prefix=.aws-hosts
+_dssh_aws_hostfile=$HOME/$_dssh_aws_hostfile_prefix
 _dssh_e_noerror=0
 _dssh_e_noargs=103
 _dssh_e_noserver=104
@@ -257,6 +259,9 @@ function _dssh_resolve_target_full() {
   local lookup_attempt_count=0
   local filtered_hosts=""
   while true; do
+    if test -z "$(find $_dssh_aws_hostfile_dir -maxdepth 1 -name "$_dssh_aws_hostfile_prefix.*" -print -quit)"; then
+      _dssh_update_inventories
+    fi
     for hostsfile in $_dssh_aws_hostfile.*; do
       local filtered_hosts_partial=$(\cat $hostsfile)
       for target in "${targets[@]}"; do
