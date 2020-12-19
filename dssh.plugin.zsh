@@ -15,6 +15,7 @@ _dssh_public_fqdn_target="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\
 _dssh_required_pip_version="18.1"
 _dssh_required_python_packages=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
 _dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
+_dssh_aws_okta_verbose_flag=""
 
 function _dssh_pverbose() { echo -e "${_dssh_gray}$1${_dssh_nc}" 1>&2; }
 function _dssh_pwarn() { echo -e "${_dssh_orange}$1${_dssh_nc}" 1>&2; }
@@ -25,6 +26,7 @@ function _dssh_unlock() { dotlockfile -u -p $_dssh_aws_hostfile.lock; }
 function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
 function _dssh_init() {
+  _dssh_aws_okta_verbose_flag="-v=${verbose_level}"
   if command -v aws-okta &>/dev/null; then
     local aws_profile
     _dssh_lsenv | while read x; do
@@ -36,7 +38,7 @@ function _dssh_init() {
       fi
     done
     if [[ "$aws_profile" != "" ]]; then
-      aws-okta exec $aws_profile -- echo -n ""
+      aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
     fi
   fi
   if [[ "$refresh_enabled" = true ]]; then
@@ -124,7 +126,7 @@ function _dssh_refresh_inventory() {
   fi
   if command -v aws-okta &>/dev/null; then
     if [[ "$AWS_PROFILE" != "" ]]; then
-      AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+      AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
       return $?
     fi
   fi
@@ -136,7 +138,7 @@ function _dssh_okta_authenticate() {
   source $1
   set +o allexport
   if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
-    aws-okta exec $AWS_PROFILE --disable-server -- echo -n "." 1>&2
+    aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- echo -n "." 1>&2
   fi
 }
 function _dssh_update_inventory() {
