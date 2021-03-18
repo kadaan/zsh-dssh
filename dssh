@@ -80,6 +80,7 @@ if ! _dssh_parse_parameters ".dsshrc" "$@"; then
   return $_dssh_e_noerror
 fi
 
+_dssh_install_python
 _dssh_init
 
 local addr=""

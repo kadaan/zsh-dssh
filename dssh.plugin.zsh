@@ -14,7 +14,7 @@ _dssh_nc='\033[0m'
 _dssh_public_fqdn_target="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\.com"
 _dssh_required_pip_version="18.1"
 _dssh_required_python_packages=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
-_dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].iteritems():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
+_dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].items():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
 _dssh_aws_okta_verbose_flag=""
 
 function _dssh_pverbose() { echo -e "${_dssh_gray}$1${_dssh_nc}" 1>&2; }
@@ -69,7 +69,8 @@ function _dssh_tag_usage() {
 }
 function _dssh_install_python() {
   if [[ "$python_installed" == false ]]; then
-    pyenv sh-shell 2.7.13 &>/dev/null || {
+    pyenv sh-shell 3.6.8 &>/dev/null || {
+      _dssh_pverbose "Installing python..."
       brew --version &>/dev/null || {
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
       }
@@ -77,10 +78,22 @@ function _dssh_install_python() {
         brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
         brew install 'pyenv' &>/dev/null || _dssh_pfatal "failed to install pyenv: $?"
       }
-      pyenv install 2.7.13 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 2.7.13: $?"
+      brew list 2>/dev/null | grep "^zlib$" &>/dev/null  || {
+        brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
+        brew install 'zlib' &>/dev/null || _dssh_pfatal "failed to install zlib: $?"
+      }
+      brew list 2>/dev/null | grep "^bzip2$" &>/dev/null  || {
+        brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
+        brew install 'bzip2' &>/dev/null || _dssh_pfatal "failed to install bzip2: $?"
+      }
+      if [[ "$(sw_vers -productVersion)" =~ "11\..*" ]]; then
+        CFLAGS="-I$(brew --prefix bzip2)/include -I$(xcrun --show-sdk-path)/usr/include" LDFLAGS="-L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" pyenv install --patch 3.6.8 --skip-existing < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1) &>/dev/null || _dssh_pfatal "failed to install python 3.6.8"
+      else
+        pyenv install 3.6.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.6.8"
+      fi
     }
     (
-      eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _dssh_pfatal "failed to switch to python 2.7.13: $?"
+      eval "$(pyenv sh-shell 3.6.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.6.8: $?"
       if [[ ! -f $HOME/.dssh/bin/activate ]]; then
         if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
           pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _dssh_pfatal "failed to install package virtualenv: $?"
@@ -107,7 +120,7 @@ function _dssh_install_python() {
   fi
 }
 function _dssh_activate_python() {
-  eval "$(pyenv sh-shell 2.7.13)" &>/dev/null || _dssh_pfatal "failed to switch to python 2.7.13: $?"
+  eval "$(pyenv sh-shell 3.6.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.6.8: $?"
   source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
 }
 function _dssh_lsenv() {
@@ -226,7 +239,6 @@ function _dssh_update_inventories() {
     if [[ "$verbose_level" -gt 2 ]]; then
       echo "" 1>&2
     fi
-    _dssh_install_python
     _dssh_lsenv | while read x; do
       _dssh_update_inventory $x &
     done
