@@ -193,7 +193,7 @@ function _dssh_is_inventory_old() {
             needUpdates=$((needUpdates+1))
           else
             local currentTimestamp=$(date +%s)
-            local fileTimestamp=$(stat --format '%m' "$_dssh_aws_hostfile.$filename")
+            local fileTimestamp=$(stat -c '%Y' "$_dssh_aws_hostfile.$filename")
             local elapsedTime=$(($currentTimestamp-$fileTimestamp))
             if [[ $elapsedTime -gt ${DSSH_HOST_UPDATE_FREQUENCY:-3600} ]]; then
                 needUpdates=$((needUpdates+1))
