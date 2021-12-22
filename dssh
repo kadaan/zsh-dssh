@@ -27,6 +27,10 @@ _usage() {
   echo "OPTIONS:"
   echo "    --command=COMMAND               run the specified command and exit"
   _dssh_common_usage
+  echo ""
+  echo "EXAMPLES:"
+  echo "    1. Tunneling local to dev consul"
+  echo "       dssh -nNT -L 8500:localhost:8500 example dev east"
 }
 
 _parse_parameter() {
@@ -72,6 +76,7 @@ fi
 
 local python_installed=false
 local refresh_enabled=false
+local ip_mode="AUTO"
 local verbose_level=0
 local ssh_options=()
 local tags=()
@@ -80,7 +85,6 @@ if ! _dssh_parse_parameters ".dsshrc" "$@"; then
   return $_dssh_e_noerror
 fi
 
-_dssh_install_python
 _dssh_init
 
 local addr=""

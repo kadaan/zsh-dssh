@@ -27,20 +27,6 @@ function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
 function _dssh_init() {
   _dssh_aws_okta_verbose_flag="-v=${verbose_level}"
-  if command -v aws-okta &>/dev/null; then
-    local aws_profile
-    _dssh_lsenv | while read x; do
-      if grep -q 'ENV_DISABLED=0' "$x"; then
-        aws_profile="$(grep 'AWS_PROFILE=' "$x" | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
-        if [[ "$?" -eq 0 ]]; then
-          break
-        fi
-      fi
-    done
-    if [[ "$aws_profile" != "" ]]; then
-      aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
-    fi
-  fi
   if [[ "$refresh_enabled" = true ]]; then
     _dssh_update_inventories
   fi
@@ -207,7 +193,7 @@ function _dssh_is_inventory_old() {
             needUpdates=$((needUpdates+1))
           else
             local currentTimestamp=$(date +%s)
-            local fileTimestamp=$(stat -f "%m" "$_dssh_aws_hostfile.$filename")
+            local fileTimestamp=$(stat --format '%m' "$_dssh_aws_hostfile.$filename")
             local elapsedTime=$(($currentTimestamp-$fileTimestamp))
             if [[ $elapsedTime -gt ${DSSH_HOST_UPDATE_FREQUENCY:-3600} ]]; then
                 needUpdates=$((needUpdates+1))
@@ -228,6 +214,19 @@ function _dssh_update_inventories() {
   if [[ "$WAS_UPDATED" == "false" || "$force" == "true" ]]; then
     _dssh_lock
     if command -v aws-okta &>/dev/null; then
+       local aws_profile
+       _dssh_lsenv | while read x; do
+         if grep -q 'ENV_DISABLED=0' "$x"; then
+           aws_profile="$(grep 'AWS_PROFILE=' "$x" | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
+           if [[ "$?" -eq 0 ]]; then
+             break
+           fi
+         fi
+       done
+       if [[ "$aws_profile" != "" ]]; then
+         aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
+       fi
+
       echo -n "${_dssh_gray}Updating inventories" 1>&2
       _dssh_lsenv | while read x; do
         _dssh_okta_authenticate $x
@@ -239,6 +238,7 @@ function _dssh_update_inventories() {
     if [[ "$verbose_level" -gt 2 ]]; then
       echo "" 1>&2
     fi
+    _dssh_install_python
     _dssh_lsenv | while read x; do
       _dssh_update_inventory $x &
     done
@@ -397,6 +397,20 @@ function _dssh_parse_common_parameters() {
     --no_refresh)
       refresh_enabled=false
     ;;
+    --ip_mode=*)
+      local ip_mode_temp="${1#*=}"
+      ip_mode_temp="${ip_mode_temp:u}"
+      case "$ip_mode_temp" in
+        PUBLIC|PRIVATE|AUTO)
+          ip_mode="$ip_mode_temp"
+        ;;
+        *)
+          _dssh_perror "unsupported ip mode [$format]"
+          _usage
+          return $_dssh_e_noargs
+        ;;
+      esac
+    ;;
     *)
       if [[ "$1" != "" ]]; then
         tags+=( "$1" )
@@ -479,6 +493,12 @@ function _dssh_parse_parameters() {
   fi
 }
 function _dssh_should_use_public_ip_address() {
+  if [[ "$ip_mode" == "PRIVATE" ]]; then
+    return 1
+  fi
+  if [[ "$ip_mode" == "PUBLIC" ]]; then
+    return 0
+  fi
   local public_addr="$1"
   local private_addr="$2"
   local public_addr_thru_tun=1

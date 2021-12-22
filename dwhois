@@ -64,6 +64,7 @@ fi
 
 local python_installed=false
 local refresh_enabled=true
+local ip_mode="AUTO"
 local verbose_level=0
 local ssh_options=()
 local tags=()
