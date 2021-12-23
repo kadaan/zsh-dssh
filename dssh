@@ -25,6 +25,7 @@ _usage() {
   echo "             -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w"
   echo ""
   echo "OPTIONS:"
+  echo "    --enable_tmux                   enable tmux session"
   echo "    --command=COMMAND               run the specified command and exit"
   _dssh_common_usage
   echo ""
@@ -45,6 +46,9 @@ _parse_parameter() {
     ;;
     -B\ * | -b\ * | -c\ * | -D\ * | -E\ * | -e\ * | -F\ * | -I\ * | -i\ * | -J\ * | -L\ * | -l\ * | -m\ * | -O\ * | -o\ * | -p\ * | -Q\ * | -R\ * | -S\ * | -W\ * | -w\ *)
       _dssh_add_ssh_option "$1"
+    ;;
+    --enable_tmux)
+      enable_tmux=true
     ;;
     -c=* | --command=*)
       command_string="${1#*=}"
@@ -80,6 +84,7 @@ local ip_mode="AUTO"
 local verbose_level=0
 local ssh_options=()
 local tags=()
+local enable_tmux=false
 local command_string=""
 if ! _dssh_parse_parameters ".dsshrc" "$@"; then
   return $_dssh_e_noerror
@@ -89,6 +94,7 @@ _dssh_init
 
 local addr=""
 local desc=""
+local name=""
 if [[ ${#tags[@]} -eq 1 && "${tags[1]}" =~ $_dssh_public_fqdn_target ]]; then
   addr="${tags[1]}"
 else
@@ -129,7 +135,7 @@ else
     else
       addr="$private_addr"
     fi
-    local name=`echo $info | awk -F, '{print $1}'`
+    name=`echo $info | awk -F, '{print $1}'`
     desc=" ($name) [$(echo $info | awk -F, '{print $4}')]"
     if [[ "$addr" =~ $PUBLIC_DNS_NAME_PATTERN ]] && ! nc -G3 -z $addr 22 &>/dev/null; then
       if [[ "$WAS_UPDATED" == "false" ]]; then
@@ -163,7 +169,16 @@ fi
 echo "" 1>&2
 local connection_message="Connecting to"
 local -a ssh_command=( "ssh" )
-if [[ "$command_string" != "" ]]; then
+if [[ "$enable_tmux" == "true" ]]; then
+  if [[ "${#command_string}" -eq 0 ]]; then
+    _dssh_pverbose "Enabling tmux session"
+    command_string="tmux -CC new -A -s '${name}'"
+    ssh_options+=( "-tt" )   
+  else
+    _dssh_pverbose "Command specified, tmux session disabled"
+  fi
+fi
+if [[ "$command_string" != "" && "$enable_tmux" == "false" ]]; then
   connection_message="Running command \`$command_string\` on"
 fi
 if [[ "${#ssh_options[@]}" -gt 0 ]]; then
