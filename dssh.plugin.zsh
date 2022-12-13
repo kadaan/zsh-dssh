@@ -56,7 +56,7 @@ function _dssh_tag_usage() {
 function _dssh_install_python() {
   if [[ "$python_installed" == false ]]; then
     pyenv sh-shell 3.9.8 &>/dev/null || {
-      _dssh_pverbose "Installing python..."
+      _dssh_pverbose "\nInstalling python..."
       brew --version &>/dev/null || {
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
       }
