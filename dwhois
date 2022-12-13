@@ -94,11 +94,7 @@ if [ -z "$info" ]; then
 else
   case $format in
     IP)
-      if _dssh_should_use_public_ip_address "$(echo "$info" | head -n1  | cut -d "," -f 6)" "$(echo "$info" | head -n1  | cut -d "," -f 6)"; then
-        echo "$info"  | cut -d "," -f 6
-      else
-        echo "$info"  | cut -d "," -f 4
-      fi
+      echo "$info"  | cut -d "," -f 4
       ;;
     INSTANCE_ID)
       echo "$info"  | cut -d "," -f 7

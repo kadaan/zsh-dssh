@@ -126,11 +126,7 @@ else
     fi
   fi
   if [[ "$addr" == "" ]]; then
-    if _dssh_should_use_public_ip_address "$(echo "$info" | head -n1 | awk -F',' '{print $2}')" "$(echo "$info" | head -n1 | awk -F',' '{print $3}')"; then
-      addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
-    else
-      addr=$(echo "$info" | awk -F, '{printf("%s,",$3)}' | sed 's/,\s*$//')
-    fi
+    addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
   fi
 fi
 

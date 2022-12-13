@@ -55,7 +55,7 @@ function _dssh_tag_usage() {
 }
 function _dssh_install_python() {
   if [[ "$python_installed" == false ]]; then
-    pyenv sh-shell 3.6.8 &>/dev/null || {
+    pyenv sh-shell 3.9.8 &>/dev/null || {
       _dssh_pverbose "Installing python..."
       brew --version &>/dev/null || {
         /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
@@ -72,14 +72,10 @@ function _dssh_install_python() {
         brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
         brew install 'bzip2' &>/dev/null || _dssh_pfatal "failed to install bzip2: $?"
       }
-      if [[ "$(sw_vers -productVersion)" =~ "11\..*" ]]; then
-        CFLAGS="-I$(brew --prefix bzip2)/include -I$(xcrun --show-sdk-path)/usr/include" LDFLAGS="-L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" pyenv install --patch 3.6.8 --skip-existing < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1) &>/dev/null || _dssh_pfatal "failed to install python 3.6.8"
-      else
-        pyenv install 3.6.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.6.8"
-      fi
+      pyenv install 3.9.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.9.8"
     }
     (
-      eval "$(pyenv sh-shell 3.6.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.6.8: $?"
+      eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
       if [[ ! -f $HOME/.dssh/bin/activate ]]; then
         if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
           pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _dssh_pfatal "failed to install package virtualenv: $?"
@@ -106,7 +102,7 @@ function _dssh_install_python() {
   fi
 }
 function _dssh_activate_python() {
-  eval "$(pyenv sh-shell 3.6.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.6.8: $?"
+  eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
   source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
 }
 function _dssh_lsenv() {
@@ -490,41 +486,6 @@ function _dssh_parse_parameters() {
 
   if [[ ${#tags[@]} -eq 0 ]]; then
     return $_dssh_e_noerror
-  fi
-}
-function _dssh_should_use_public_ip_address() {
-  if [[ "$ip_mode" == "PRIVATE" ]]; then
-    return 1
-  fi
-  if [[ "$ip_mode" == "PUBLIC" ]]; then
-    return 0
-  fi
-  local public_addr="$1"
-  local private_addr="$2"
-  local public_addr_thru_tun=1
-  local private_addr_thru_tun=1
-  if [[ "${#public_addr}" -gt 0 ]]; then
-    route -n get "$public_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
-    public_addr_thru_tun="$?"
-  fi
-  if [[ "${#private_addr}" -gt 0 ]]; then
-    route -n get "$private_addr" | grep interface  | awk '{print $2}' | egrep -q '^u?tun[0-9]+$';
-    private_addr_thru_tun="$?"
-  fi
-  if [[ "$public_addr_thru_tun" -eq 0 ]]; then
-    if [[ "$private_addr_thru_tun" -eq 0 ]]; then
-      if nc -G3 -z $public_addr 22 &>/dev/null; then
-        return 0
-      else
-        return 1
-      fi
-    else
-      return 0
-    fi
-  elif [[ "$private_addr_thru_tun" -eq 0 ]]; then
-    return 1
-  else
-    return 2
   fi
 }
 

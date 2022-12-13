@@ -20,35 +20,44 @@ _usage() {
   _dssh_tag_usage
   echo "SSH OPTIONS:"
   echo "    Flags:   -4 | -6 | -A | -a | -C | -f | -G | -g | -K | -k | -M"
-  echo "             -N | -n | -q | -s | -T | -t | -V | -X | -x | -Y | -y"
-  echo "    Options: -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -L"
-  echo "             -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w"
+  echo "             -q | -s | -T | -t | -V | -X | -x | -Y | -y"
+  echo "    Options: -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -l"
+  echo "             -m | -O | -o | -p | -Q | -R | -S | -W | -w"
   echo ""
   echo "OPTIONS:"
-  echo "    --enable_tmux                   enable tmux session"
-  echo "    --command=COMMAND               run the specified command and exit"
+  echo "    --tmux, --tmux=session, --no_tmux  enable/disable tmux session"
+  echo "    --command=COMMAND                  run the specified command and exit"
+  echo "    --tunnel=PORT                      open a tunnel for the specified port"
   _dssh_common_usage
-  echo ""
-  echo "EXAMPLES:"
-  echo "    1. Tunneling local to dev consul"
-  echo "       dssh -nNT -L 8500:localhost:8500 example dev east"
 }
 
 _parse_parameter() {
   local shift_count=1
   case "$1" in
-    -4 | -6 | -A | -a | -C | -f | -G | -g | -K | -k | -M | -N | -n | -q | -s | -T | -t | -V | -X | -x | -Y | -y)
+    -4 | -6 | -A | -a | -C | -f | -G | -g | -K | -k | -M | -q | -s | -T | -t | -V | -X | -x | -Y | -y)
       _dssh_add_ssh_option "$1"
     ;;
-    -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -L | -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w)
+    -B | -b | -c | -D | -E | -e | -F | -I | -i | -J | -l | -m | -O | -o | -p | -Q | -R | -S | -W | -w)
       _dssh_add_ssh_option "$1 $2"
       shift_count=2
     ;;
-    -B\ * | -b\ * | -c\ * | -D\ * | -E\ * | -e\ * | -F\ * | -I\ * | -i\ * | -J\ * | -L\ * | -l\ * | -m\ * | -O\ * | -o\ * | -p\ * | -Q\ * | -R\ * | -S\ * | -W\ * | -w\ *)
+    -B\ * | -b\ * | -c\ * | -D\ * | -E\ * | -e\ * | -F\ * | -I\ * | -i\ * | -J\ * | -l\ * | -m\ * | -O\ * | -o\ * | -p\ * | -Q\ * | -R\ * | -S\ * | -W\ * | -w\ *)
       _dssh_add_ssh_option "$1"
     ;;
-    --enable_tmux)
-      enable_tmux=true
+    --tmux)
+      enable_tmux="default"
+    ;;
+    --tmux=*)
+      enable_tmux="${1#*=}"
+      if [[ "$enable_tmux" == "" ]]; then
+        _dssh_perror "--tmux=<SESSION> cannot have an empty session"
+      fi
+    ;;
+    --no_tmux)
+      enable_tmux=""
+    ;;
+    --tunnel=*)
+      tunnel="${1#*=}"
     ;;
     -c=* | --command=*)
       command_string="${1#*=}"
@@ -86,8 +95,17 @@ local ssh_options=()
 local tags=()
 local enable_tmux=false
 local command_string=""
+local tunnel=""
 if ! _dssh_parse_parameters ".dsshrc" "$@"; then
   return $_dssh_e_noerror
+fi
+
+if [[ "$enable_tmux" =~ [^a-zA-Z0-9_-] ]]; then
+  _dssh_perror "--tmux=<SESSION> must have a session name that is composed of only dash, underscore, and alphanumeric characters"
+fi
+
+if [[ "${#tunnel}" -gt 0 && "${#command_string}" -gt 0 ]]; then
+  _dssh_perror "--tunnel and --command cannot be specified at the same time"
 fi
 
 _dssh_init
@@ -128,14 +146,8 @@ else
         return $result
       fi
     fi
-    local public_addr=`echo $info | awk -F, '{print $3}'`
-    local private_addr=`echo $info | awk -F, '{print $2}'`
-    if _dssh_should_use_public_ip_address "$public_addr" "$private_addr"; then
-      addr="$public_addr"
-    else
-      addr="$private_addr"
-    fi
-    name=`echo $info | awk -F, '{print $1}'`
+    addr=$(echo $info | awk -F, '{print $2}')
+    name=$(echo $info | awk -F, '{print $1}')
     desc=" ($name) [$(echo $info | awk -F, '{print $4}')]"
     if [[ "$addr" =~ $PUBLIC_DNS_NAME_PATTERN ]] && ! nc -G3 -z $addr 22 &>/dev/null; then
       if [[ "$WAS_UPDATED" == "false" ]]; then
@@ -154,8 +166,8 @@ else
         elif [[ "$result" -gt 0 ]]; then
           return $result
         fi
-        addr=`echo $info | awk -F, '{print $2}'`
-        desc=`echo $info | awk -F, '{print "(" $1 ") [" $3 "]"}'`
+        addr=$(echo $info | awk -F, '{print $2}')
+        desc=$(echo $info | awk -F, '{print "(" $1 ") [" $3 "]"}')
       fi
     fi
   fi
@@ -169,17 +181,22 @@ fi
 echo "" 1>&2
 local connection_message="Connecting to"
 local -a ssh_command=( "ssh" )
-if [[ "$enable_tmux" == "true" ]]; then
-  if [[ "${#command_string}" -eq 0 ]]; then
+if [[ "$enable_tmux" != "" ]]; then
+  if [[ "${#command_string}" -eq 0 && "${#tunnel}" -eq 0 ]]; then
     _dssh_pverbose "Enabling tmux session"
-    command_string="tmux -CC new -A -s '${name}'"
-    ssh_options+=( "-tt" )   
-  else
+    command_string="tmux -CC new -A -s '${enable_tmux}'"
+    ssh_options+=( "-tt" )
+  elif [[ "${#command_string}" -gt 0 ]]; then
     _dssh_pverbose "Command specified, tmux session disabled"
+  else
+    _dssh_pverbose "Tunneling enabled, tmux session disabled"
   fi
 fi
-if [[ "$command_string" != "" && "$enable_tmux" == "false" ]]; then
+if [[ "${#command_string}" -gt 0 ]]; then
   connection_message="Running command \`$command_string\` on"
+fi
+if [[ "${#tunnel}" -gt 0 ]]; then
+  connection_message="Opening tunnel for port \`$tunnel\` to"
 fi
 if [[ "${#ssh_options[@]}" -gt 0 ]]; then
   read -rA opts <<<"${ssh_options[@]}"
@@ -187,8 +204,11 @@ if [[ "${#ssh_options[@]}" -gt 0 ]]; then
     ssh_command+=( "$opt" )
   done
 fi
+if [[ "${#tunnel}" -gt 0 ]]; then
+  ssh_command+=( "-nNT" "-L" "${tunnel}:localhost:${tunnel}" )
+fi
 ssh_command+=( "${addr}" )
-if [[ "$command_string" != "" ]]; then
+if [[ "${#command_string}" -gt 0 ]]; then
   ssh_command+=( "${command_string}" )
 fi
 _dssh_pverbose "$connection_message ${addr}${desc}..."
