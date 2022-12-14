@@ -93,7 +93,7 @@ local ip_mode="AUTO"
 local verbose_level=0
 local ssh_options=()
 local tags=()
-local enable_tmux=false
+local enable_tmux=""
 local command_string=""
 local tunnel=""
 if ! _dssh_parse_parameters ".dsshrc" "$@"; then

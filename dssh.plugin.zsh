@@ -12,8 +12,8 @@ _dssh_red="${_dssh_color_prefix}208${_dssh_color_suffix}"
 _dssh_bold_white='\033[1m'
 _dssh_nc='\033[0m'
 _dssh_public_fqdn_target="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\.com"
-_dssh_required_pip_version="18.1"
-_dssh_required_python_packages=("boto==2.46.1" "boto3==1.5.27" "six==1.12.0" "gevent==1.4.0")
+_dssh_required_pip_version="22.3.1"
+_dssh_required_python_packages=("boto==2.49.0" "boto3==1.26.29" "six==1.16.0" "gevent==22.10.2")
 _dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].items():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
 _dssh_aws_okta_verbose_flag=""
 
