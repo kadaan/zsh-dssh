@@ -4,6 +4,11 @@ if [[ $0 != pdssh || -n $ZSH_SCRIPT ]]; then
     typeset ZSH_DSSH_DIR=${0:h}
 fi
 
+if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
+  devbox run -c "$ZSH_DSSH_DIR" pdssh "$@"
+  return $?
+fi
+
 set +m
 set -o pipefail
 
@@ -74,9 +79,11 @@ _parse_parameter() {
   return $shift_count
 }
 _install_dependencies() {
-  which -a pdsh &>/dev/null || {
-    brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
-  }
+  if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
+    which -a pdsh &>/dev/null || {
+      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
+    }
+  fi
 }
 
 _dssh_prepare_dssh_locking
@@ -89,7 +96,6 @@ fi
 
 local python_installed=false
 local refresh_enabled=true
-local ip_mode="AUTO"
 local verbose_level=0
 local ssh_options=()
 local tags=()

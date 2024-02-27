@@ -1,0 +1,52 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "gawk@5.2.2": {
+      "last_modified": "2024-02-10T18:15:24Z",
+      "resolved": "github:NixOS/nixpkgs/10b813040df67c4039086db0f6eaf65c536886c6#gawk",
+      "source": "devbox-search",
+      "version": "5.2.2",
+      "systems": {
+        "aarch64-darwin": {
+          "store_path": "/nix/store/spskfl77py9hyvh3f9sjsqcrbsaiprh0-gawk-5.2.2"
+        },
+        "aarch64-linux": {
+          "store_path": "/nix/store/aff474lmwps7lmy81xx2n6vpgrqb81hm-gawk-5.2.2"
+        },
+        "x86_64-darwin": {
+          "store_path": "/nix/store/npxs880r2q6gqb6ax750kbq2scc0xzxy-gawk-5.2.2"
+        },
+        "x86_64-linux": {
+          "store_path": "/nix/store/h53ycc406fmbq3ff0n0rjxdzb6lk9zcn-gawk-5.2.2"
+        }
+      }
+    },
+    "pdsh@2.35": {
+      "last_modified": "2024-02-10T18:15:24Z",
+      "resolved": "github:NixOS/nixpkgs/10b813040df67c4039086db0f6eaf65c536886c6#pdsh",
+      "source": "devbox-search",
+      "version": "2.35",
+      "systems": {
+        "aarch64-darwin": {
+          "store_path": "/nix/store/48fjlwn1n8mkpaizhidfqgnf5cwcykvp-pdsh-2.35"
+        },
+        "aarch64-linux": {
+          "store_path": "/nix/store/pbbzb5qrkkcj1f4ibycwrcv8b5x4y90c-pdsh-2.35"
+        },
+        "x86_64-darwin": {
+          "store_path": "/nix/store/aj1j0qj47cci856jdqxjp4x7mfymbv1r-pdsh-2.35"
+        },
+        "x86_64-linux": {
+          "store_path": "/nix/store/cy0z4lsp9m5lvapar2m379cqc5ni2xdx-pdsh-2.35"
+        }
+      }
+    },
+    "python@3.9.9": {
+      "last_modified": "2022-01-26T13:01:16Z",
+      "plugin_version": "0.0.3",
+      "resolved": "github:NixOS/nixpkgs/e722007bf05802573b41701c49da6c8814878171#python3",
+      "source": "devbox-search",
+      "version": "3.9.9"
+    }
+  }
+}

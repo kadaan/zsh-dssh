@@ -1,0 +1,22 @@
+{
+    "$schema": "https://raw.githubusercontent.com/jetpack-io/devbox/main/.schema/devbox.schema.json",
+    "packages": [
+      "python@3.9.9",
+      "pdsh@2.35",
+      "gawk@5.2.2"
+    ],
+    "shell": {
+      "scripts": {
+        "dssh": [
+          "/usr/bin/env zsh -c 'dssh \"$@\"' dssh \"$@\""
+        ],
+        "dwhois": [
+          "/usr/bin/env zsh -c 'dwhois \"$@\"' dwhois \"$@\""
+        ],
+        "pdssh": [
+          "/usr/bin/env zsh -c 'pdssh \"$@\"' pdssh \"$@\""
+        ]
+      }
+    }
+  }
+  

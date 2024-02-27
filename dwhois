@@ -4,6 +4,11 @@ if [[ $0 != dwhois || -n $ZSH_SCRIPT ]]; then
     typeset ZSH_DSSH_DIR=${0:h}
 fi
 
+if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
+  devbox run -c "$ZSH_DSSH_DIR" dwhois "$@"
+  return $?
+fi
+
 set +m
 set -o pipefail
 

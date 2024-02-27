@@ -27,6 +27,9 @@ function _dssh_prepare_dssh_locking() { trap _dssh_unlock EXIT; }
 
 function _dssh_init() {
   _dssh_aws_okta_verbose_flag="-v=${verbose_level}"
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
+  _dssh_install_python
   if [[ "$refresh_enabled" = true ]]; then
     _dssh_update_inventories
   fi
@@ -55,37 +58,46 @@ function _dssh_tag_usage() {
 }
 function _dssh_install_python() {
   if [[ "$python_installed" == false ]]; then
-    pyenv sh-shell 3.9.8 &>/dev/null || {
-      _dssh_pverbose "\nInstalling python..."
-      brew --version &>/dev/null || {
-        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
+    local checksum_filename
+    if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
+      pyenv sh-shell 3.9.8 &>/dev/null || {
+        _dssh_pverbose "\nInstalling python..."
+        brew --version &>/dev/null || {
+          /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
+        }
+        brew list 2>/dev/null | grep "^pyenv$" &>/dev/null  || {
+          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
+          brew install 'pyenv' &>/dev/null || _dssh_pfatal "failed to install pyenv: $?"
+        }
+        brew list 2>/dev/null | grep "^zlib$" &>/dev/null  || {
+          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
+          brew install 'zlib' &>/dev/null || _dssh_pfatal "failed to install zlib: $?"
+        }
+        brew list 2>/dev/null | grep "^bzip2$" &>/dev/null  || {
+          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
+          brew install 'bzip2' &>/dev/null || _dssh_pfatal "failed to install bzip2: $?"
+        }
+        pyenv install 3.9.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.9.8"
       }
-      brew list 2>/dev/null | grep "^pyenv$" &>/dev/null  || {
-        brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-        brew install 'pyenv' &>/dev/null || _dssh_pfatal "failed to install pyenv: $?"
-      }
-      brew list 2>/dev/null | grep "^zlib$" &>/dev/null  || {
-        brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-        brew install 'zlib' &>/dev/null || _dssh_pfatal "failed to install zlib: $?"
-      }
-      brew list 2>/dev/null | grep "^bzip2$" &>/dev/null  || {
-        brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-        brew install 'bzip2' &>/dev/null || _dssh_pfatal "failed to install bzip2: $?"
-      }
-      pyenv install 3.9.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.9.8"
-    }
+      checksum_filename="$HOME/.dssh/packages.checksum"
+    else
+      source "${DEVBOX_PROJECT_ROOT}"/.devbox/virtenv/bin/venvShellHook.sh
+      source "${VENV_DIR}/bin/activate"
+      checksum_filename="${VENV_DIR}/packages.checksum"
+    fi
     (
-      eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
-      if [[ ! -f $HOME/.dssh/bin/activate ]]; then
-        if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
-          pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _dssh_pfatal "failed to install package virtualenv: $?"
+      if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
+        eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
+        if [[ ! -f $HOME/.dssh/bin/activate ]]; then
+          if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
+            pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _dssh_pfatal "failed to install package virtualenv: $?"
+          fi
+          if [[ ! -d $HOME/.dssh ]]; then
+            pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _dssh_pfatal "failed to create virtualenv '$HOME/.dssh': $?"
+          fi
         fi
-        if [[ ! -d $HOME/.dssh ]]; then
-          pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _dssh_pfatal "failed to create virtualenv '$HOME/.dssh': $?"
-        fi
+        source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
       fi
-      source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
-      local checksum_filename="$HOME/.dssh/packages.checksum"
       local expected_checksum=""
       if [[ -f $checksum_filename ]]; then
         expected_checksum="$(\cat $checksum_filename)"
@@ -100,10 +112,6 @@ function _dssh_install_python() {
     )
     python_installed=true
   fi
-}
-function _dssh_activate_python() {
-  eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
-  source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
 }
 function _dssh_lsenv() {
     \ls -1 $HOME/.env/*.sh
@@ -138,7 +146,6 @@ function _dssh_okta_authenticate() {
 }
 function _dssh_update_inventory() {
   (
-    _dssh_activate_python
     cd $ANSIBLE_PATH || return
     set -o allexport
     source $1
@@ -234,7 +241,6 @@ function _dssh_update_inventories() {
     if [[ "$verbose_level" -gt 2 ]]; then
       echo "" 1>&2
     fi
-    _dssh_install_python
     _dssh_lsenv | while read x; do
       _dssh_update_inventory $x &
     done
@@ -492,8 +498,7 @@ function _dssh_parse_parameters() {
 0=${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}
 0=${${(M)0:#/*}:-$PWD/$0}
 
-if [[ ${zsh_loaded_plugins[-1]} != */zsh-dssh && -z ${fpath[(r)${0:h}]} ]]
-then
+if [[ ${zsh_loaded_plugins[-1]} != */zsh-dssh && -z ${fpath[(r)${0:h}]} ]];then
     fpath+=( "${0:h}" )
 fi
 
