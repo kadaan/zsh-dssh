@@ -3,7 +3,8 @@
     "packages": [
       "python@3.9.9",
       "pdsh@2.35",
-      "gawk@5.2.2"
+      "gawk@5.2.2",
+      "liblockfile@1.17"
     ],
     "shell": {
       "scripts": {
