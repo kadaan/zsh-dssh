@@ -1,6 +1,26 @@
 {
   "lockfile_version": "1",
   "packages": {
+    "coreutils@9.4": {
+      "last_modified": "2024-02-24T23:06:34Z",
+      "resolved": "github:NixOS/nixpkgs/9a9dae8f6319600fa9aebde37f340975cab4b8c0#coreutils",
+      "source": "devbox-search",
+      "version": "9.4",
+      "systems": {
+        "aarch64-darwin": {
+          "store_path": "/nix/store/2bglpqk4wxizbjpri67lbjgngs3pyjag-coreutils-9.4"
+        },
+        "aarch64-linux": {
+          "store_path": "/nix/store/hbh2gmp1idyjzw2wdh50idi8q01xm6yb-coreutils-9.4"
+        },
+        "x86_64-darwin": {
+          "store_path": "/nix/store/mwjyhjnq90q9anil7xdi1wfrwsh7pxlg-coreutils-9.4"
+        },
+        "x86_64-linux": {
+          "store_path": "/nix/store/x1xcjw5628crkk1pwr12y7nwbzkc3969-coreutils-9.4"
+        }
+      }
+    },
     "gawk@5.2.2": {
       "last_modified": "2024-02-10T18:15:24Z",
       "resolved": "github:NixOS/nixpkgs/10b813040df67c4039086db0f6eaf65c536886c6#gawk",
@@ -18,6 +38,26 @@
         },
         "x86_64-linux": {
           "store_path": "/nix/store/h53ycc406fmbq3ff0n0rjxdzb6lk9zcn-gawk-5.2.2"
+        }
+      }
+    },
+    "liblockfile@1.17": {
+      "last_modified": "2024-02-24T23:06:34Z",
+      "resolved": "github:NixOS/nixpkgs/9a9dae8f6319600fa9aebde37f340975cab4b8c0#liblockfile",
+      "source": "devbox-search",
+      "version": "1.17",
+      "systems": {
+        "aarch64-darwin": {
+          "store_path": "/nix/store/px2wl2pbs9qqv8msjzm79r7wbyfk6cvc-liblockfile-1.17"
+        },
+        "aarch64-linux": {
+          "store_path": "/nix/store/ip9zgfp42kscnhhsydi58zdn1cidh4gh-liblockfile-1.17"
+        },
+        "x86_64-darwin": {
+          "store_path": "/nix/store/ak3j1cjbnld150s94yvkn1qf4indksmp-liblockfile-1.17"
+        },
+        "x86_64-linux": {
+          "store_path": "/nix/store/5w5pdriy9bvs83kla0rf2dfls689sclm-liblockfile-1.17"
         }
       }
     },
