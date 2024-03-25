@@ -129,7 +129,7 @@ function _dssh_refresh_inventory() {
   fi
   if command -v aws-okta &>/dev/null; then
     if [[ "$AWS_PROFILE" != "" ]]; then
-      AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+      AWS_OKTA_IGNORE_UPDATES=true AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
       return $?
     fi
   fi
@@ -141,7 +141,7 @@ function _dssh_okta_authenticate() {
   source $1
   set +o allexport
   if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
-    aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- echo -n "." 1>&2
+    AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- echo -n "." 1>&2
   fi
 }
 function _dssh_update_inventory() {
@@ -227,7 +227,7 @@ function _dssh_update_inventories() {
          fi
        done
        if [[ "$aws_profile" != "" ]]; then
-         aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
+         AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
        fi
 
       echo -n "${_dssh_gray}Updating inventories" 1>&2
