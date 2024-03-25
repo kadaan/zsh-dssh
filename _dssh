@@ -9,6 +9,10 @@ _arguments -C \
     '--command=-[run the specified command and exit]' \
     '--refresh[refresh the cached host information]' \
     '-r[refresh the cached host information]' \
+    '--tmux[enable/disable tmux session]' \
+    '--tmux=-[enable/disable tmux session]' \
+    '--no-tmux[enable/disable tmux session]' \
+    '--tunnel=-[open a tunnel for the specified port]' \
     '-vvvv[verbose logging, multiple -v options increase the verbosity]' \
     '-vvv[verbose logging, multiple -v options increase the verbosity]' \
     '-vv[verbose logging, multiple -v options increase the verbosity]' \
