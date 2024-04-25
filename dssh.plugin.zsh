@@ -81,7 +81,7 @@ function _dssh_install_python() {
       }
       checksum_filename="$HOME/.dssh/packages.checksum"
     else
-      source "${DEVBOX_PROJECT_ROOT}"/.devbox/virtenv/bin/venvShellHook.sh
+      source "${DEVBOX_PROJECT_ROOT}"/.devbox/virtenv/bin/venvShellHook.sh &> /dev/null
       source "${VENV_DIR}/bin/activate"
       checksum_filename="${VENV_DIR}/packages.checksum"
     fi
@@ -432,6 +432,7 @@ function _dssh_parse_priority_parameters() {
         local verbose_elements=${var##-}
         verbose_level=${#verbose_elements}
         if [[ $verbose_level -ge 4 ]]; then
+        echo "$ZSH_VERSION"
           if [[ "$ZSH_VERSION" != "" ]]; then
             local start_time="${${EPOCHREALTIME//.}:0:-6}"
             PS4="+ [\$(( \${\${EPOCHREALTIME//.}:0:-6} - $start_time ))] [%N:%i] "

@@ -4,115 +4,120 @@ if [[ $0 != dwhois || -n $ZSH_SCRIPT ]]; then
     typeset ZSH_DSSH_DIR=${0:h}
 fi
 
-if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
-  devbox run -c "$ZSH_DSSH_DIR" dwhois "$@"
-  return $?
-fi
-
 set +m
 set -o pipefail
 
-local WAS_UPDATED=false
-local -a sort_command=("cat" "-u")
-local format="FULL"
-_usage() {
-  echo
-  echo "Locates servers in the inventory."
-  echo
-  echo "Usage: dwhois tags [tags ...]"
-  echo ""
-  _dssh_tag_usage
-  echo "OPTIONS:"
-  echo "    --format=[IP|INSTANCE_ID|SHORT|FULL|RAW]    format of details tp print about the servers (default: FULL)"
-  _dssh_common_usage
-}
-_parse_parameter() {
-  local shift_count=1
-  case "$1" in
-    -f=* | --format=*)
-      format="${1#*=}"
-      format="${format:u}"
-      case $format in
-        SHORT | INSTANCE_ID | IP | FULL | RAW)
-          ;;
-        *)
-          _dssh_perror "unsupported format [$format]"
-          _usage
-          return $_dssh_e_noargs
-          ;;
-        esac
-    ;;
-    -v | -vv | -vvv | -vvvv)
-    ;;
-    *)
-      _dssh_parse_common_parameters "$1"
-      shift_count=$?
-    ;;
-  esac
-  return $shift_count
-}
-function _print_hosts_full() {
-  local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
-  max_host_length="$((max_host_length+1))"
-  local public_icon=$'\uf0c2'
-  local private_icon=$'\uf023'
-  echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)  [%s]\n\", \"$_dssh_color_prefix\", \$12, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$9, \$7}{if (length(\$6) > 0) printf \"       $public_icon: %s (%s)\n\", \$2, \$6}{printf \"       $private_icon: %s (%s)\n%s\n\", \$3, \$4, \"$_dssh_nc\"}"
-}
+(
+  if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
+    export DEVBOX_SHELL_ENABLED=1
+    devbox -c "$ZSH_DSSH_DIR" --quiet install &> /dev/null || fatal _dssh_pfatal "failed to install devbox packages: $?"
+    local shell_env
+    shell_env="$(devbox -c "$ZSH_DSSH_DIR" --quiet shellenv | tac | sed -n '/^export /,$p' | tac | grep -v 'XPC_SERVICE_NAME')" || fatal _dssh_pfatal "failed to get devbox env: $?"
+    eval "$shell_env" || fatal _dssh_pfatal "failed to set devbox env: $?"
+  fi
 
-_dssh_prepare_dssh_locking
+  local WAS_UPDATED=false
+  local -a sort_command=("cat" "-u")
+  local format="FULL"
+  _usage() {
+    echo
+    echo "Locates servers in the inventory."
+    echo
+    echo "Usage: dwhois tags [tags ...]"
+    echo ""
+    _dssh_tag_usage
+    echo "OPTIONS:"
+    echo "    --format=[IP|INSTANCE_ID|SHORT|FULL|RAW]    format of details tp print about the servers (default: FULL)"
+    _dssh_common_usage
+  }
+  _parse_parameter() {
+    local shift_count=1
+    case "$1" in
+      -f=* | --format=*)
+        format="${1#*=}"
+        format="${format:u}"
+        case $format in
+          SHORT | INSTANCE_ID | IP | FULL | RAW)
+            ;;
+          *)
+            _dssh_perror "unsupported format [$format]"
+            _usage
+            return $_dssh_e_noargs
+            ;;
+          esac
+      ;;
+      -v | -vv | -vvv | -vvvv)
+      ;;
+      *)
+        _dssh_parse_common_parameters "$1"
+        shift_count=$?
+      ;;
+    esac
+    return $shift_count
+  }
+  function _print_hosts_full() {
+    local max_host_length="$(echo "$1" | cut -d "," -f 1 | awk '{print length}' | sort -nr | head -1)"
+    max_host_length="$((max_host_length+1))"
+    local public_icon=$'\uf0c2'
+    local private_icon=$'\uf023'
+    echo "$1" | awk -F ',' "{printf \"%s%s%s%3s: %s%-*s%s (%s)  [%s]\n\", \"$_dssh_color_prefix\", \$12, \"$_dssh_color_suffix\", NR, \"$_dssh_nc\", $max_host_length-1, \$1, \"$_dssh_gray\", \$9, \$7}{if (length(\$6) > 0) printf \"       $public_icon: %s (%s)\n\", \$2, \$6}{printf \"       $private_icon: %s (%s)\n%s\n\", \$3, \$4, \"$_dssh_nc\"}"
+  }
 
-if [[ $# -eq 0 ]]; then
-  _dssh_perror "wrong number of input parameters [$#]"
-  _usage
-  return $_dssh_e_noargs
-fi
+  _dssh_prepare_dssh_locking
 
-local python_installed=false
-local refresh_enabled=true
-local ip_mode="AUTO"
-local verbose_level=0
-local ssh_options=()
-local tags=()
-local command_string=""
-if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
-  return $_dssh_e_noerror
-fi
+  if [[ $# -eq 0 ]]; then
+    _dssh_perror "wrong number of input parameters [$#]"
+    _usage
+    return $_dssh_e_noargs
+  fi
 
-_dssh_init
+  local python_installed=false
+  local refresh_enabled=true
+  local ip_mode="AUTO"
+  local verbose_level=0
+  local ssh_options=()
+  local tags=()
+  local command_string=""
+  if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
+    return $_dssh_e_noerror
+  fi
 
-local info=""
-info="$(_dssh_resolve_target_full "${tags[@]}")"
-if [[ "$?" -eq 1 ]]; then
-  WAS_UPDATED=true
-fi
-if [ -z "$info" ]; then
-  _dssh_update_inventories
+  _dssh_init
+
+  local info=""
   info="$(_dssh_resolve_target_full "${tags[@]}")"
   if [[ "$?" -eq 1 ]]; then
     WAS_UPDATED=true
   fi
-fi
+  if [ -z "$info" ]; then
+    _dssh_update_inventories
+    info="$(_dssh_resolve_target_full "${tags[@]}")"
+    if [[ "$?" -eq 1 ]]; then
+      WAS_UPDATED=true
+    fi
+  fi
 
-if [ -z "$info" ]; then
-  _dssh_pwarn "Host '${tags[*]}' not found in inventory."
-  return $_dssh_e_noerror
-else
-  case $format in
-    IP)
-      echo "$info"  | cut -d "," -f 4
-      ;;
-    INSTANCE_ID)
-      echo "$info"  | cut -d "," -f 7
-      ;;
-    SHORT)
-      _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,4,6,9,12)"
-      ;;
-    FULL)
-      _print_hosts_full $info
-      ;;
-    RAW)
-      echo "$info"
-      ;;
-  esac
-  return $_dssh_e_noerror
-fi
+  if [ -z "$info" ]; then
+    _dssh_pwarn "Host '${tags[*]}' not found in inventory."
+    return $_dssh_e_noerror
+  else
+    case $format in
+      IP)
+        echo "$info"  | cut -d "," -f 4
+        ;;
+      INSTANCE_ID)
+        echo "$info"  | cut -d "," -f 7
+        ;;
+      SHORT)
+        _dssh_print_menu_hosts "$(echo "$info"  | cut -d "," -f 1,4,6,9,12)"
+        ;;
+      FULL)
+        _print_hosts_full $info
+        ;;
+      RAW)
+        echo "$info"
+        ;;
+    esac
+    return $_dssh_e_noerror
+  fi
+)

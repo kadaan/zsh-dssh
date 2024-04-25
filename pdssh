@@ -4,165 +4,169 @@ if [[ $0 != pdssh || -n $ZSH_SCRIPT ]]; then
     typeset ZSH_DSSH_DIR=${0:h}
 fi
 
-if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
-  devbox run -c "$ZSH_DSSH_DIR" pdssh "$@"
-  return $?
-fi
-
 set +m
 set -o pipefail
 
-local WAS_UPDATED=false
-local name_enabled=true
-local -a sort_command=()
-local list_hosts=false
-_usage() {
-  echo
-  echo "Locates and runs commands on multiple AWS servers via SSH."
-  echo
-  echo "Usage: pdssh [pdsh options] [options] tags [tags ...]"
-  echo ""
-  _dssh_tag_usage
-  echo "PDSH OPTIONS:"
-  echo "    Flags:   -b | -N | -d"
-  echo "    Options: -l | -t | -u | -f"
-  echo ""
-  echo "OPTIONS:"
-  echo "    --command=COMMAND               run the specified command and exit"
-  echo "    --list-hosts                    lists the targeted hosts and exit"
-  echo "    --sort                          sort the results by server"
-  echo "    --identity-file=FILE            file from which the identity (private key) for public key authentication is read"
-  _dssh_common_usage
-}
-_parse_parameter() {
-  local shift_count=1
-  case "$1" in
-    -N)
-      _dssh_add_ssh_option "$1"
-      name_enabled=false
-    ;;
-    -b | -d)
-      _dssh_add_ssh_option "$1"
-    ;;
-    -l | -t | -u | -f)
-      _dssh_add_ssh_option "$1 $2"
-      shift_count=2
-    ;;
-    -l\ * | -t\ * | -u\ * | -f\ *)
-      _dssh_add_ssh_option "$1"
-    ;;
-    --sort)
-      sort_command=("sort" "-s" "-t" ":")
-    ;;
-    --list-hosts)
-      list_hosts=true
-    ;;
-    --identity-file=*)
-      identity_file="${1#*=}"
-    ;;
-    -c=* | --command=*)
-      command_string="${1#*=}"
-    ;;
-    -v | -vv | -vvv | -vvvv)
-    ;;
-    *)
-      if [[ "$1" =~ ^-[bNd]+$ ]]; then
-        for char in $(echo "${1:1}" | fold -w1); do
-          _parse_parameter "-$char"
-        done
-      else
-        _dssh_parse_common_parameters "$1"
-        shift_count=$?
-      fi
-    ;;
-  esac
-  return $shift_count
-}
-_install_dependencies() {
-  if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
-    which -a pdsh &>/dev/null || {
-      brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
-    }
+(
+  if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
+    export DEVBOX_SHELL_ENABLED=1
+    devbox -c "$ZSH_DSSH_DIR" --quiet install &> /dev/null || fatal _dssh_pfatal "failed to install devbox packages: $?"
+    local shell_env
+    shell_env="$(devbox -c "$ZSH_DSSH_DIR" --quiet shellenv | tac | sed -n '/^export /,$p' | tac | grep -v 'XPC_SERVICE_NAME')" || fatal _dssh_pfatal "failed to get devbox env: $?"
+    eval "$shell_env" || fatal _dssh_pfatal "failed to set devbox env: $?"
   fi
-}
 
-_dssh_prepare_dssh_locking
+  local WAS_UPDATED=false
+  local name_enabled=true
+  local -a sort_command=()
+  local list_hosts=false
+  _usage() {
+    echo
+    echo "Locates and runs commands on multiple AWS servers via SSH."
+    echo
+    echo "Usage: pdssh [pdsh options] [options] tags [tags ...]"
+    echo ""
+    _dssh_tag_usage
+    echo "PDSH OPTIONS:"
+    echo "    Flags:   -b | -N | -d"
+    echo "    Options: -l | -t | -u | -f"
+    echo ""
+    echo "OPTIONS:"
+    echo "    --command=COMMAND               run the specified command and exit"
+    echo "    --list-hosts                    lists the targeted hosts and exit"
+    echo "    --sort                          sort the results by server"
+    echo "    --identity-file=FILE            file from which the identity (private key) for public key authentication is read"
+    _dssh_common_usage
+  }
+  _parse_parameter() {
+    local shift_count=1
+    case "$1" in
+      -N)
+        _dssh_add_ssh_option "$1"
+        name_enabled=false
+      ;;
+      -b | -d)
+        _dssh_add_ssh_option "$1"
+      ;;
+      -l | -t | -u | -f)
+        _dssh_add_ssh_option "$1 $2"
+        shift_count=2
+      ;;
+      -l\ * | -t\ * | -u\ * | -f\ *)
+        _dssh_add_ssh_option "$1"
+      ;;
+      --sort)
+        sort_command=("sort" "-s" "-t" ":")
+      ;;
+      --list-hosts)
+        list_hosts=true
+      ;;
+      --identity-file=*)
+        identity_file="${1#*=}"
+      ;;
+      -c=* | --command=*)
+        command_string="${1#*=}"
+      ;;
+      -v | -vv | -vvv | -vvvv)
+      ;;
+      *)
+        if [[ "$1" =~ ^-[bNd]+$ ]]; then
+          for char in $(echo "${1:1}" | fold -w1); do
+            _parse_parameter "-$char"
+          done
+        else
+          _dssh_parse_common_parameters "$1"
+          shift_count=$?
+        fi
+      ;;
+    esac
+    return $shift_count
+  }
+  _install_dependencies() {
+    if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
+      which -a pdsh &>/dev/null || {
+        brew install pdsh &>/dev/null || _dssh_pfatal "failed to install pdsh: $?"
+      }
+    fi
+  }
 
-if [[ $# -eq 0 ]]; then
-  _dssh_perror "wrong number of input parameters [$#]"
-  _usage
-  return $_dssh_e_noargs
-fi
+  _dssh_prepare_dssh_locking
 
-local python_installed=false
-local refresh_enabled=true
-local verbose_level=0
-local ssh_options=()
-local tags=()
-local command_string=""
-local identity_file=""
-if ! _dssh_parse_parameters ".pdsshrc" "$@"; then
-  return $_dssh_e_noerror
-fi
-if [[ "${#sort_command}" -gt 0 && "$name_enabled" == "true" ]]; then
-  sort_command+=("-k" "1,1")
-fi
-
-_dssh_init
-
-local addr=""
-local desc=""
-if [[ ${#tags[@]} -eq 1 && "${tags[1]}" =~ $_dssh_public_fqdn_target ]]; then
-  addr="${tags[1]}"
-else
-  local info=""
-  info="$(_dssh_resolve_target "${tags[@]}")"
-  if [[ "$?" -eq 1 ]]; then
-    WAS_UPDATED=true
+  if [[ $# -eq 0 ]]; then
+    _dssh_perror "wrong number of input parameters [$#]"
+    _usage
+    return $_dssh_e_noargs
   fi
-  if [ -z "$info" ]; then
-    _dssh_update_inventories
+
+  local python_installed=false
+  local refresh_enabled=true
+  local verbose_level=0
+  local ssh_options=()
+  local tags=()
+  local command_string=""
+  local identity_file=""
+  if ! _dssh_parse_parameters ".pdsshrc" "$@"; then
+    return $_dssh_e_noerror
+  fi
+  if [[ "${#sort_command}" -gt 0 && "$name_enabled" == "true" ]]; then
+    sort_command+=("-k" "1,1")
+  fi
+
+  _dssh_init
+
+  local addr=""
+  local desc=""
+  if [[ ${#tags[@]} -eq 1 && "${tags[1]}" =~ $_dssh_public_fqdn_target ]]; then
+    addr="${tags[1]}"
+  else
+    local info=""
     info="$(_dssh_resolve_target "${tags[@]}")"
     if [[ "$?" -eq 1 ]]; then
       WAS_UPDATED=true
     fi
     if [ -z "$info" ]; then
-      _dssh_pwarn "Host '${tags[*]}' not found in inventory.  Attempting to connect anyway..."
-      addr="${tags[*]}"
+      _dssh_update_inventories
+      info="$(_dssh_resolve_target "${tags[@]}")"
+      if [[ "$?" -eq 1 ]]; then
+        WAS_UPDATED=true
+      fi
+      if [ -z "$info" ]; then
+        _dssh_pwarn "Host '${tags[*]}' not found in inventory.  Attempting to connect anyway..."
+        addr="${tags[*]}"
+      fi
+    fi
+    if [[ "$addr" == "" ]]; then
+      addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
     fi
   fi
-  if [[ "$addr" == "" ]]; then
-    addr=$(echo "$info" | awk -F, '{printf("%s,",$2)}' | sed 's/,\s*$//')
+
+  if [[ "$list_hosts" == "true" ]]; then
+    _dssh_print_menu_hosts $info
+    return $_dssh_e_noerror
   fi
-fi
 
-if [[ "$list_hosts" == "true" ]]; then
-  _dssh_print_menu_hosts $info
-  return $_dssh_e_noerror
-fi
-
-echo "" 1>&2
-local server_count="$(echo "$addr" | awk -F, '{ print NF; exit }')"
-local server_message="$server_count server"
-if [[ "$server_count" -ne 1 ]]; then
-  server_message="${server_message}s"
-fi
-local connection_message="Running command against $server_message..."
-local -a ssh_command=( "pdsh" "-S" "-R" "ssh")
-if [[ "${#ssh_options[@]}" -gt 0 ]]; then
-  read -rA opts <<<"${ssh_options[@]}"
-  for opt in "${opts[@]}"; do
-    ssh_command+=( "$opt" )
-  done
-fi
-ssh_command+=( "-w" "$addr" )
-if [[ "$command_string" != "" ]]; then
-  ssh_command+=( "${command_string}" )
-fi
-_install_dependencies
-_dssh_pverbose "$connection_message"
-local awk_map="my \$hosts_file;"
-for f in $HOME/.aws-hosts.*; do
+  echo "" 1>&2
+  local server_count="$(echo "$addr" | awk -F, '{ print NF; exit }')"
+  local server_message="$server_count server"
+  if [[ "$server_count" -ne 1 ]]; then
+    server_message="${server_message}s"
+  fi
+  local connection_message="Running command against $server_message..."
+  local -a ssh_command=( "pdsh" "-S" "-R" "ssh")
+  if [[ "${#ssh_options[@]}" -gt 0 ]]; then
+    read -rA opts <<<"${ssh_options[@]}"
+    for opt in "${opts[@]}"; do
+      ssh_command+=( "$opt" )
+    done
+  fi
+  ssh_command+=( "-w" "$addr" )
+  if [[ "$command_string" != "" ]]; then
+    ssh_command+=( "${command_string}" )
+  fi
+  _install_dependencies
+  _dssh_pverbose "$connection_message"
+  local awk_map="my \$hosts_file;"
+  for f in $HOME/.aws-hosts.*; do
 awk_map=$(\cat <<EOF
 $awk_map
 open(\$hosts_file, '$f') || die 'Cannot open file "$f".';
@@ -186,8 +190,8 @@ while (<\$hosts_file>) {
 }
 EOF
 )
-done
-local enrich_script=$(\cat <<EOF
+  done
+  local enrich_script=$(\cat <<EOF
 #!/usr/bin/perl
 use strict;
 use warnings;
@@ -221,13 +225,14 @@ while (<>) {
 }
 EOF
 )
-local additional_ssh_args=""
-if [[ "${#identity_file}" -gt 0 ]]; then
-  additional_ssh_args=" -o IdentitiesOnly=yes -i $identity_file"
-fi
-if [[ "${#sort_command}" -gt 0 ]]; then
-  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
-else
-  env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script"
-fi
-return $?
+  local additional_ssh_args=""
+  if [[ "${#identity_file}" -gt 0 ]]; then
+    additional_ssh_args=" -o IdentitiesOnly=yes -i $identity_file"
+  fi
+  if [[ "${#sort_command}" -gt 0 ]]; then
+    env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script" | ${sort_command[@]}
+  else
+    env PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR$additional_ssh_args" ${ssh_command[@]} 2>&1 | perl -e "$enrich_script"
+  fi
+  return $?
+)

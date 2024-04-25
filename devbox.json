@@ -6,18 +6,5 @@
     "gawk@5.2.2",
     "liblockfile@1.17",
     "coreutils@9.4"
-  ],
-  "shell": {
-    "scripts": {
-      "dssh": [
-        "/usr/bin/env zsh -c 'dssh \"$@\"' dssh \"$@\""
-      ],
-      "dwhois": [
-        "/usr/bin/env zsh -c 'dwhois \"$@\"' dwhois \"$@\""
-      ],
-      "pdssh": [
-        "/usr/bin/env zsh -c 'pdssh \"$@\"' pdssh \"$@\""
-      ]
-    }
-  }
+  ]
 }
