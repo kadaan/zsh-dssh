@@ -317,7 +317,7 @@ function _dssh_resolve_target_full() {
       break
     fi
   done
-  echo "$filtered_hosts"
+  echo "$filtered_hosts" | sort -u -d -k "8,8" -k "9,9" -k "1,1" -t ","
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
