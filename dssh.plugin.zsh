@@ -290,7 +290,7 @@ function _dssh_resolve_target_full() {
           fi
           grep_command+=( '--' "$target_part" )
           local filtered_hosts_target_partial_result=""
-          filtered_hosts_target_partial_result=$(echo "$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "8,8" -k "9,9" -k "1,1" -t ",")
+          filtered_hosts_target_partial_result=$(echo "$hostsfile,$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "9,9" -k "10,10" -k "2,2" -t ",")
           if [[ ${#filtered_hosts_target_partial_result} -gt 0 ]]; then
             if [[ ${#filtered_hosts_target_partial} -gt 0 ]]; then
               filtered_hosts_target_partial="$filtered_hosts_target_partial\n"
@@ -317,7 +317,7 @@ function _dssh_resolve_target_full() {
       break
     fi
   done
-  echo "$filtered_hosts" | sort -u -d -k "8,8" -k "9,9" -k "1,1" -t ","
+  echo "$filtered_hosts" | sort -u -d -k "1,1" -k "9,9" -k "10,10" -k "2,2" -t ","
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
@@ -329,7 +329,7 @@ function _dssh_resolve_target() {
   local filtered_hosts
   filtered_hosts="$(_dssh_resolve_target_full "$@")"
   result="$?"
-  echo "$filtered_hosts" | cut -d "," -f 1,4,6,9,12
+  echo "$filtered_hosts" | cut -d "," -f 2,5,7,10,13
   return $result
 }
 function _dssh_prompt_server() {
