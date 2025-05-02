@@ -129,11 +129,11 @@ function _dssh_refresh_inventory() {
   fi
   if command -v aws-okta &>/dev/null; then
     if [[ "$AWS_PROFILE" != "" ]]; then
-      AWS_OKTA_IGNORE_UPDATES=true AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+      AWS_OKTA_IGNORE_UPDATES=true AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR,$filename/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
       return $?
     fi
   fi
-  AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
+  AWS_REGIONS=${ENV_AWS_REGIONS:?} EC2_INI_PATH=$ec2_ini_path python $ANSIBLE_INVENTORY/ec2.py --refresh-cache | python -c "$(echo $_dssh_host_query)" | sed "s/$/,$AWS_PROFILE,$ENV_COLOR,$filename/" | sort -d -k "8,8" -k "9,9" -k "1,1" -t "," > "$_dssh_aws_hostfile.$filename"
   return $?
 }
 function _dssh_okta_authenticate() {
@@ -290,7 +290,7 @@ function _dssh_resolve_target_full() {
           fi
           grep_command+=( '--' "$target_part" )
           local filtered_hosts_target_partial_result=""
-          filtered_hosts_target_partial_result=$(echo "$hostsfile,$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "9,9" -k "10,10" -k "2,2" -t ",")
+          filtered_hosts_target_partial_result=$(echo "$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "9,9" -k "10,10" -k "2,2" -t ",")
           if [[ ${#filtered_hosts_target_partial_result} -gt 0 ]]; then
             if [[ ${#filtered_hosts_target_partial} -gt 0 ]]; then
               filtered_hosts_target_partial="$filtered_hosts_target_partial\n"
@@ -317,7 +317,7 @@ function _dssh_resolve_target_full() {
       break
     fi
   done
-  echo "$filtered_hosts" | sort -u -d -k "1,1" -k "9,9" -k "10,10" -k "2,2" -t ","
+  echo "$filtered_hosts" | sort -u -d -k "1,1" -k "9,9" -k "10,10" -k "2,2" -t "," | sort -d -k "13,13" -k "1,1" -k "9,9" -k "10,10" -k "2,2"
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
@@ -329,7 +329,7 @@ function _dssh_resolve_target() {
   local filtered_hosts
   filtered_hosts="$(_dssh_resolve_target_full "$@")"
   result="$?"
-  echo "$filtered_hosts" | cut -d "," -f 2,5,7,10,13
+  echo "$filtered_hosts" | cut -d "," -f 1,4,6,9,12
   return $result
 }
 function _dssh_prompt_server() {
