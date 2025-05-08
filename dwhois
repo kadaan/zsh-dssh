@@ -77,12 +77,14 @@ set -o pipefail
   local verbose_level=0
   local ssh_options=()
   local tags=()
+  local envs=()
+  local env_files=()
   local command_string=""
   if ! _dssh_parse_parameters ".dwhoisrc" "$@"; then
     return $_dssh_e_noerror
   fi
 
-  _dssh_init
+  _dssh_init "${tags[@]}"
 
   local info=""
   info="$(_dssh_resolve_target_full "${tags[@]}")"
@@ -90,7 +92,7 @@ set -o pipefail
     WAS_UPDATED=true
   fi
   if [ -z "$info" ]; then
-    _dssh_update_inventories
+    _dssh_update_inventories false "${tags[@]}"
     info="$(_dssh_resolve_target_full "${tags[@]}")"
     if [[ "$?" -eq 1 ]]; then
       WAS_UPDATED=true

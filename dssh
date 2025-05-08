@@ -102,6 +102,8 @@ set -o pipefail
   local verbose_level=0
   local ssh_options=()
   local tags=()
+  local envs=()
+  local env_files=()
   local enable_tmux=""
   local command_string=""
   local tunnel=""
@@ -117,7 +119,7 @@ set -o pipefail
     _dssh_perror "--tunnel and --command cannot be specified at the same time"
   fi
 
-  _dssh_init
+  _dssh_init "${tags[@]}"
 
   local addr=""
   local desc=""
@@ -131,7 +133,7 @@ set -o pipefail
       WAS_UPDATED=true
     fi
     if [ -z "$info" ]; then
-      _dssh_update_inventories
+      _dssh_update_inventories false "${tags[@]}"
       info="$(_dssh_resolve_target "${tags[@]}")"
       if [[ "$?" -eq 1 ]]; then
         WAS_UPDATED=true
@@ -145,7 +147,7 @@ set -o pipefail
       local count=$(echo "$info" | wc -l)
       if [[ $count -gt 1 ]]; then
         if _dssh_is_inventory_old; then
-          _dssh_update_inventories
+          _dssh_update_inventories false "${tags[@]}"
         fi
         _dssh_prompt_server
         local result="$?"
@@ -160,7 +162,7 @@ set -o pipefail
       desc=" ($name) [$(echo $info | awk -F, '{print $4}')]"
       if [[ "$addr" =~ $PUBLIC_DNS_NAME_PATTERN ]] && ! nc -G3 -z $addr 22 &>/dev/null; then
         if [[ "$WAS_UPDATED" == "false" ]]; then
-          _dssh_update_inventories
+          _dssh_update_inventories false "${tags[@]}"
           info="$(_dssh_resolve_target "$name")"
           if [[ "$?" -eq 1 ]]; then
             WAS_UPDATED=true

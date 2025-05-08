@@ -1,6 +1,7 @@
-_dssh_aws_hostfile_dir=$HOME
+_dssh_aws_hostfile_dir="$HOME"
 _dssh_aws_hostfile_prefix=.aws-hosts
-_dssh_aws_hostfile=$HOME/$_dssh_aws_hostfile_prefix
+_dssh_aws_hostfile="$_dssh_aws_hostfile_dir/$_dssh_aws_hostfile_prefix"
+_dssh_env_pattern="^${_dssh_aws_hostfile_dir}/\.env/[[:digit:]]*_(.*)\.sh$"
 _dssh_e_noerror=0
 _dssh_e_noargs=103
 _dssh_e_noserver=104
@@ -31,7 +32,7 @@ function _dssh_init() {
   export LC_ALL=en_US.UTF-8
   _dssh_install_python
   if [[ "$refresh_enabled" = true ]]; then
-    _dssh_update_inventories
+    _dssh_update_inventories false "$@"
   fi
 }
 
@@ -140,9 +141,7 @@ function _dssh_okta_authenticate() {
   set -o allexport
   source $1
   set +o allexport
-  if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
-    AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- echo -n "." 1>&2
-  fi
+  AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} $AWS_PROFILE --disable-server -- echo -n "." 1>&2
 }
 function _dssh_update_inventory() {
   (
@@ -150,57 +149,53 @@ function _dssh_update_inventory() {
     set -o allexport
     source $1
     set +o allexport
-    if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
-      local filename=$(_dssh_get_envname "$1")
-      if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
-          return
+    local filename=$(_dssh_get_envname "$1")
+    if [ ! -f $ANSIBLE_INVENTORY/ec2.py ]; then
+        return
+    fi
+    local i=0
+    if [[ "$verbose_level" -gt 2 ]]; then
+      _dssh_pverbose "Updating $ENV_NAME:l..."
+    fi
+    _dssh_refresh_inventory
+    local result=$?
+    while [ $result -ne 0 ]; do
+      i=$(($i+1))
+      if [ "$i" -gt 5 ]; then
+        break;
       fi
-      local i=0
       if [[ "$verbose_level" -gt 2 ]]; then
-        _dssh_pverbose "Updating $ENV_NAME:l..."
+        _dssh_pverbose "Updating $ENV_NAME:l failed.  Retrying..."
       fi
       _dssh_refresh_inventory
-      local result=$?
-      while [ $result -ne 0 ]; do
-        i=$(($i+1))
-        if [ "$i" -gt 5 ]; then
-          break;
-        fi
-        if [[ "$verbose_level" -gt 2 ]]; then
-          _dssh_pverbose "Updating $ENV_NAME:l failed.  Retrying..."
-        fi
-        _dssh_refresh_inventory
-        result=$?
-      done
-      if [[ "$verbose_level" -gt 2 ]]; then
-        local update_status="complete"
-        if [[ "$result" -ne 0 ]]; then
-          update_status="failed"
-        fi
-        _dssh_pverbose "Updating $ENV_NAME:l $update_status"
+      result=$?
+    done
+    if [[ "$verbose_level" -gt 2 ]]; then
+      local update_status="complete"
+      if [[ "$result" -ne 0 ]]; then
+        update_status="failed"
       fi
+      _dssh_pverbose "Updating $ENV_NAME:l $update_status"
     fi
   )
 }
 function _dssh_is_inventory_old() {
   local needUpdates=0
-  _dssh_lsenv | while read x; do
+  for env_file in "${env_files[@]}"; do
     (
       set -o allexport
-      source $x
+      source $env_file
       set +o allexport
-      if [[ "${ENV_DISABLED:-0}" -eq 0 ]]; then
-        filename=$(_dssh_get_envname "$x")
-        if [ -f $ANSIBLE_INVENTORY/ec2.py ]; then
-          if [[ ! -f $_dssh_aws_hostfile.$filename ]] || [[ ! -s $_dssh_aws_hostfile.$filename ]]; then
-            needUpdates=$((needUpdates+1))
-          else
-            local currentTimestamp=$(date +%s)
-            local fileTimestamp=$(stat -c '%Y' "$_dssh_aws_hostfile.$filename")
-            local elapsedTime=$(($currentTimestamp-$fileTimestamp))
-            if [[ $elapsedTime -gt ${DSSH_HOST_UPDATE_FREQUENCY:-3600} ]]; then
-                needUpdates=$((needUpdates+1))
-            fi
+      filename=$(_dssh_get_envname "$env_file")
+      if [ -f $ANSIBLE_INVENTORY/ec2.py ]; then
+        if [[ ! -f $_dssh_aws_hostfile.$filename ]] || [[ ! -s $_dssh_aws_hostfile.$filename ]]; then
+          needUpdates=$((needUpdates+1))
+        else
+          local currentTimestamp=$(date +%s)
+          local fileTimestamp=$(stat -c '%Y' "$_dssh_aws_hostfile.$filename")
+          local elapsedTime=$(($currentTimestamp-$fileTimestamp))
+          if [[ $elapsedTime -gt ${DSSH_HOST_UPDATE_FREQUENCY:-3600} ]]; then
+              needUpdates=$((needUpdates+1))
           fi
         fi
       fi
@@ -213,26 +208,25 @@ function _dssh_is_inventory_old() {
   fi
 }
 function _dssh_update_inventories() {
-  local force="${1:-false}"
+  local force="${1:?}"
+  shift 1
+  local targets=( "$@" )
   if [[ "$WAS_UPDATED" == "false" || "$force" == "true" ]]; then
     _dssh_lock
     if command -v aws-okta &>/dev/null; then
-       local aws_profile
-       _dssh_lsenv | while read x; do
-         if grep -q 'ENV_DISABLED=0' "$x"; then
-           aws_profile="$(grep 'AWS_PROFILE=' "$x" | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
-           if [[ "$?" -eq 0 ]]; then
-             break
-           fi
-         fi
-       done
-       if [[ "$aws_profile" != "" ]]; then
-         AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
-       fi
-
+      local aws_profile
+      for env_file in "${env_files[@]}"; do
+        aws_profile="$(grep 'AWS_PROFILE=' "$env_file" | sed 's/^AWS_PROFILE=\(.*\)$/\1/')"
+        if [[ "$?" -eq 0 ]]; then
+          break
+        fi
+      done
+      if [[ "$aws_profile" != "" ]]; then
+        AWS_OKTA_IGNORE_UPDATES=true aws-okta exec ${_dssh_aws_okta_verbose_flag} ${aws_profile} -- echo -n ""
+      fi
       echo -n "${_dssh_gray}Updating inventories" 1>&2
-      _dssh_lsenv | while read x; do
-        _dssh_okta_authenticate $x
+      for env_file in "${env_files[@]}"; do
+        _dssh_okta_authenticate $env_file
       done
       echo -n "${_dssh_nc}" 1>&2
     else
@@ -241,8 +235,8 @@ function _dssh_update_inventories() {
     if [[ "$verbose_level" -gt 2 ]]; then
       echo "" 1>&2
     fi
-    _dssh_lsenv | while read x; do
-      _dssh_update_inventory $x &
+    for env_file in "${env_files[@]}"; do
+      _dssh_update_inventory $env_file &
     done
     wait
     echo "${_dssh_gray}done${_dssh_nc}" 1>&2
@@ -276,7 +270,18 @@ function _dssh_resolve_target_full() {
   local filtered_hosts=""
   while true; do
     if test -z "$(find $_dssh_aws_hostfile_dir -maxdepth 1 -name "$_dssh_aws_hostfile_prefix.*" -print -quit)"; then
-      _dssh_update_inventories
+      _dssh_update_inventories false "${targets[@]}"
+    else
+      local needs_update="false"
+      for env in "${envs[@]}"; do
+        if test -z "$(find $_dssh_aws_hostfile_dir -maxdepth 1 -name "$_dssh_aws_hostfile_prefix.*_$env" -print -quit)"; then
+          needs_update="true"
+          break
+        fi
+      done
+      if [[ "$needs_update" == "true" ]]; then
+        _dssh_update_inventories false "${targets[@]}"
+      fi
     fi
     for hostsfile in $_dssh_aws_hostfile.*; do
       local filtered_hosts_partial=$(\cat $hostsfile)
@@ -290,7 +295,7 @@ function _dssh_resolve_target_full() {
           fi
           grep_command+=( '--' "$target_part" )
           local filtered_hosts_target_partial_result=""
-          filtered_hosts_target_partial_result=$(echo "$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "9,9" -k "10,10" -k "2,2" -t ",")
+          filtered_hosts_target_partial_result=$(echo "$filtered_hosts_partial" | ${grep_command[@]} | sort -u -d -k "8,8" -k "9,9" -k "1,1" -t ",")
           if [[ ${#filtered_hosts_target_partial_result} -gt 0 ]]; then
             if [[ ${#filtered_hosts_target_partial} -gt 0 ]]; then
               filtered_hosts_target_partial="$filtered_hosts_target_partial\n"
@@ -312,12 +317,12 @@ function _dssh_resolve_target_full() {
     done
     if [[ ${#filtered_hosts} -le 0 && $lookup_attempt_count -eq 0 ]]; then
       lookup_attempt_count=$(($lookup_attempt_count+1))
-      _dssh_update_inventories
+      _dssh_update_inventories false "${targets[@]}"
     else
       break
     fi
   done
-  echo "$filtered_hosts" | sort -u -d -k "1,1" -k "9,9" -k "10,10" -k "2,2" -t "," | sort -d -k "13,13" -k "1,1" -k "9,9" -k "10,10" -k "2,2"
+  echo "$filtered_hosts" | sort -u -d -k "11,11" -k "8,8" -k "9,9" -k "1,1" -t "," | sort -d -k "13,13" -k "8,8" -k "9,9" -k "1,1" -t ","
   if [[ "$WAS_UPDATED" == true ]]; then
     return 1
   else
@@ -347,7 +352,7 @@ function _dssh_prompt_server() {
         if [[ "$position" = "Q" ]] || [[ "$position" = "q" ]]; then
           return -1
         elif [[ "$position" = "R" ]] || [[ "$position" = "r" ]]; then
-          _dssh_update_inventories true
+          _dssh_update_inventories true "${tags[@]}"
           info="$(_dssh_resolve_target "${tags[@]}")"
           if [[ ${#info} -le 0 ]]; then
             _dssh_pwarn "Host '$target' not found in inventory.  Attempting to connect anyway..."
@@ -493,6 +498,46 @@ function _dssh_parse_parameters() {
 
   if [[ ${#tags[@]} -eq 0 ]]; then
     return $_dssh_e_noerror
+  fi
+
+  local all_envs=()
+  local all_env_files=()
+  _dssh_lsenv | while read x; do
+    if [[ "$x" =~ $_dssh_env_pattern ]]; then
+      if [[ "${#match[1]}" -gt 0 ]]; then
+        if grep -q 'ENV_DISABLED=0' "$x"; then
+          all_envs+=( "${match[1]}" )
+          all_env_files+=( "$x" )          
+        fi
+      fi
+    fi
+  done
+  for tag in "${tags[@]}"; do
+    for (( env_index = 1; env_index <= $#all_envs; env_index++ )); do
+      local env="${all_envs[$env_index]}"
+      local env_file="${all_env_files[$env_index]}"
+      for tag_part in ${(@s/,/)tag}; do
+        if [[ "$tag_part" == "$env" || "$tag_part" == "%$env" ]]; then
+          local has_env="false"
+          for found_env in "${envs[@]}"; do
+            if [[ "$found_env" == "$env" ]]; then
+              has_env="true"
+              break
+            fi
+          done
+          if [[ "$has_env" == "false" ]]; then
+            envs+=( "$env" )
+            env_files+=( "$env_file" )
+          fi
+        fi
+      done
+    done
+  done
+  if [[ "${#envs[@]}" -eq 0 ]]; then
+    envs=( "${all_envs[@]}" )
+  fi
+  if [[ "${#env_files[@]}" -eq 0 ]]; then
+    env_files=( "${all_env_files[@]}" )
   fi
 }
 
