@@ -501,23 +501,28 @@ function _dssh_parse_parameters() {
   fi
 
   local all_envs=()
+  local all_env_types=()
   local all_env_files=()
-  _dssh_lsenv | while read x; do
-    if [[ "$x" =~ $_dssh_env_pattern ]]; then
+  local env_type
+  while read env_file; do
+    if [[ "$env_file" =~ $_dssh_env_pattern ]]; then
       if [[ "${#match[1]}" -gt 0 ]]; then
-        if grep -q 'ENV_DISABLED=0' "$x"; then
+        if grep -q 'ENV_DISABLED=0' "$env_file"; then
           all_envs+=( "${match[1]}" )
-          all_env_files+=( "$x" )          
+          all_env_files+=( "$env_file" )
+          env_type="$(awk -F= '/^ENV_TYPE=/ {print $2}' "$env_file")"
+          all_env_types+=( "${env_type:-}" )
         fi
       fi
     fi
-  done
+  done <<< "$(_dssh_lsenv)"
   for tag in "${tags[@]}"; do
     for (( env_index = 1; env_index <= $#all_envs; env_index++ )); do
       local env="${all_envs[$env_index]}"
+      local env_type="${all_env_types[$env_index]}"
       local env_file="${all_env_files[$env_index]}"
       for tag_part in ${(@s/,/)tag}; do
-        if [[ "$tag_part" == "$env" || "$tag_part" == "%$env" ]]; then
+        if [[ "$env_type" == "" || "${tag_part:l}" == "${env_type:l}" || "${tag_part:l}" == "%${env_type:l}" ]]; then
           local has_env="false"
           for found_env in "${envs[@]}"; do
             if [[ "$found_env" == "$env" ]]; then
