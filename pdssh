@@ -10,10 +10,10 @@ set -o pipefail
 (
   if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
     export DEVBOX_SHELL_ENABLED=1
-    devbox -c "$ZSH_DSSH_DIR" --quiet install &> /dev/null || fatal _dssh_pfatal "failed to install devbox packages: $?"
+    devbox -c "$ZSH_DSSH_DIR" --quiet install &> /dev/null || _dssh_pfatal "failed to install devbox packages: $?"
     local shell_env
-    shell_env="$(devbox -c "$ZSH_DSSH_DIR" --quiet shellenv | tac | sed -n '/^export /,$p' | tac | grep -v 'XPC_SERVICE_NAME')" || fatal _dssh_pfatal "failed to get devbox env: $?"
-    eval "$shell_env" || fatal _dssh_pfatal "failed to set devbox env: $?"
+    shell_env="$(devbox -c "$ZSH_DSSH_DIR" --quiet shellenv | tac | sed -n '/^export /,$p' | tac | grep -v 'XPC_SERVICE_NAME')" || _dssh_pfatal "failed to get devbox env: $?"
+    eval "$shell_env" || _dssh_pfatal "failed to set devbox env: $?"
   fi
 
   local WAS_UPDATED=false
