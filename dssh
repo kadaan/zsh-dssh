@@ -8,7 +8,7 @@ set +m
 set -o pipefail
 
 (
-  if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]] && command -v devbox &>/dev/null; then
+  if [[ "${DEVBOX_SHELL_ENABLED:-0}" != "1" ]]; then
     export DEVBOX_SHELL_ENABLED=1
     devbox -c "$ZSH_DSSH_DIR" --quiet install &> /dev/null || _dssh_pfatal "failed to install devbox packages: $?"
     local shell_env
@@ -96,7 +96,6 @@ set -o pipefail
     return $_dssh_e_noargs
   fi
 
-  local python_installed=false
   local refresh_enabled=false
   local ip_mode="AUTO"
   local verbose_level=0

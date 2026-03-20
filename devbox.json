@@ -1,10 +1,21 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jetpack-io/devbox/main/.schema/devbox.schema.json",
-  "packages": [
-    "python@3.9.9",
-    "pdsh@2.35",
-    "gawk@5.2.2",
-    "liblockfile@1.17",
-    "coreutils@9.4"
-  ]
+  "$schema": "https://raw.githubusercontent.com/jetpack-io/devbox/0.10.1/.schema/devbox.schema.json",
+  "packages": {
+    "python": "3.10.19",
+    "pdsh": "2.36",
+    "gawk": "5.3.2",
+    "liblockfile": "1.17",
+    "coreutils": "9.9",
+    "python310Packages.boto": "2.49.0",
+    "python310Packages.boto3": "1.28.57",
+    "python310Packages.six": "1.16.0",
+    "python310Packages.gevent": "23.9.1"
+  },
+  "shell": {
+    "scripts": {
+      "init_hook": [
+        ". $VENV_DIR/bin/activate"
+      ]
+    }
+  }
 }

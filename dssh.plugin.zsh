@@ -13,8 +13,6 @@ _dssh_red="${_dssh_color_prefix}208${_dssh_color_suffix}"
 _dssh_bold_white='\033[1m'
 _dssh_nc='\033[0m'
 _dssh_public_fqdn_target="ec2-[0-9]+-[0-9]+-[0-9]+-[0-9]+\.compute-1\.amazonaws\.com"
-_dssh_required_pip_version="22.3.1"
-_dssh_required_python_packages=("boto==2.49.0" "boto3==1.26.29" "six==1.16.0" "gevent==22.10.2")
 _dssh_host_query="import sys\nimport json\n\ndata = json.load(sys.stdin)\n\nfor name, info in data['_meta']['hostvars'].items():\n    if 'ec2_tag_Name' in info:\n        print('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (info['ec2_tag_Name'], name, info['ec2_private_dns_name'], info['ec2_private_ip_address'], info['ec2_public_dns_name'], info['ec2_ip_address'], info['ec2_id'], info['ec2_tag_Service'], info['ec2_placement'], 'autoscaling' if 'ec2_tag_Autoscaling' in info else 'instance' ))"
 _dssh_aws_okta_verbose_flag=""
 
@@ -30,7 +28,6 @@ function _dssh_init() {
   _dssh_aws_okta_verbose_flag="-v=${verbose_level}"
   export LANG=en_US.UTF-8
   export LC_ALL=en_US.UTF-8
-  _dssh_install_python
   if [[ "$refresh_enabled" = true ]]; then
     _dssh_update_inventories false "$@"
   fi
@@ -56,63 +53,6 @@ function _dssh_tag_usage() {
   echo "    Tags can be negated by prefixing the tag with '%'."
   echo "    Union, intersection, and negation can all be used together."
   echo ""
-}
-function _dssh_install_python() {
-  if [[ "$python_installed" == false ]]; then
-    local checksum_filename
-    if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
-      pyenv sh-shell 3.9.8 &>/dev/null || {
-        _dssh_pverbose "\nInstalling python..."
-        brew --version &>/dev/null || {
-          /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" &>/dev/null || _dssh_pfatal "failed to install brew: $?"
-        }
-        brew list 2>/dev/null | grep "^pyenv$" &>/dev/null  || {
-          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-          brew install 'pyenv' &>/dev/null || _dssh_pfatal "failed to install pyenv: $?"
-        }
-        brew list 2>/dev/null | grep "^zlib$" &>/dev/null  || {
-          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-          brew install 'zlib' &>/dev/null || _dssh_pfatal "failed to install zlib: $?"
-        }
-        brew list 2>/dev/null | grep "^bzip2$" &>/dev/null  || {
-          brew update &>/dev/null || _dssh_pfatal "failed to update brew: $?"
-          brew install 'bzip2' &>/dev/null || _dssh_pfatal "failed to install bzip2: $?"
-        }
-        pyenv install 3.9.8 --skip-existing &>/dev/null || _dssh_pfatal "failed to install python 3.9.8"
-      }
-      checksum_filename="$HOME/.dssh/packages.checksum"
-    else
-      source "${DEVBOX_PROJECT_ROOT}"/.devbox/virtenv/bin/venvShellHook.sh &> /dev/null
-      source "${VENV_DIR}/bin/activate"
-      checksum_filename="${VENV_DIR}/packages.checksum"
-    fi
-    (
-      if [[ "${DEVBOX_SHELL_ENABLED:-0}" == "0" ]]; then
-        eval "$(pyenv sh-shell 3.9.8)" &>/dev/null || _dssh_pfatal "failed to switch to python 3.9.8: $?"
-        if [[ ! -f $HOME/.dssh/bin/activate ]]; then
-          if ! pyenv exec python -c "import virtualenv" &>/dev/null; then
-            pyenv exec pip install virtualenv==16.2.0 &>/dev/null || _dssh_pfatal "failed to install package virtualenv: $?"
-          fi
-          if [[ ! -d $HOME/.dssh ]]; then
-            pyenv exec virtualenv "$HOME/.dssh" --no-pip &>/dev/null || _dssh_pfatal "failed to create virtualenv '$HOME/.dssh': $?"
-          fi
-        fi
-        source "$HOME/.dssh/bin/activate" &>/dev/null || _dssh_pfatal "failed to activate virtualenv '$HOME/.dssh': $?"
-      fi
-      local expected_checksum=""
-      if [[ -f $checksum_filename ]]; then
-        expected_checksum="$(\cat $checksum_filename)"
-      fi
-      local actual_checksum="$(echo "$_dssh_required_pip_version;;$_dssh_required_python_packages[*]" | shasum)"
-      if [[ "$expected_checksum" != "$actual_checksum" ]]; then
-        python -m ensurepip &>/dev/null || _dssh_pfatal "failed to ensure baseline pip is installed: $?"
-        python -m pip install pip==$_dssh_required_pip_version &>/dev/null || _dssh_pfatal "failed to install pip: $?"
-        python -m pip install $_dssh_required_python_packages[*] &>/dev/null || _dssh_pfatal "failed to install [boto,boto3,six,gevent]: $?"
-        echo "$actual_checksum" >! $checksum_filename
-      fi
-    )
-    python_installed=true
-  fi
 }
 function _dssh_lsenv() {
     \ls -1 $HOME/.env/*.sh
